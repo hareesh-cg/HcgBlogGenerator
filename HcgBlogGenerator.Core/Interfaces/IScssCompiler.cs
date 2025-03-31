@@ -1,4 +1,6 @@
- namespace HcgBlogGenerator.Core.Interfaces;
+using SharpScss;
+
+namespace HcgBlogGenerator.Core.Interfaces;
 
 /// <summary>
 /// Defines the contract for compiling SCSS/SASS code into CSS.
@@ -34,21 +36,4 @@ public interface IScssCompiler
     //     ScssOutputStyle outputStyle = ScssOutputStyle.Compressed,
     //     bool generateSourceMap = false,
     //     CancellationToken cancellationToken = default);
-}
-
-/// <summary>
-/// Defines the output style for compiled CSS.
-/// Mirrors SharpScss.OutputStyle but defined here to avoid direct dependency in the interface.
-/// </summary>
-public enum ScssOutputStyle
-{
-    /// <summary>
-    /// Expanded, readable CSS format.
-    /// </summary>
-    Expanded,
-    /// <summary>
-    /// Compact, minified CSS format.
-    /// </summary>
-    Compressed
-    // Add other styles like Nested, Compact if needed
 }
