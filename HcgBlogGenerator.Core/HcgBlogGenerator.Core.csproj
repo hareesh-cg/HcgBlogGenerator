@@ -4,7 +4,19 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Description>Core library for HcgBlogGenerator, containing domain models, application logic, interfaces, and core service implementations.</Description>
+    <Authors>hareesh-cg</Authors> <!-- TODO: Update if necessary -->
+    <Copyright>Copyright (c) 2025 hareesh-cg</Copyright> <!-- TODO: Update year/name if necessary -->
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- Add PackageProjectUrl, RepositoryUrl etc. later if publishing to NuGet -->
   </PropertyGroup>
+
+  <ItemGroup>
+  <!-- Include LICENSE and README in the package -->
+    <None Include="..\LICENSE" Pack="true" PackagePath="\"/>
+    <None Include="..\README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Markdig" Version="0.40.0" />
