@@ -5,6 +5,8 @@ VisualStudioVersion = 17.12.35707.178 d17.12
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HcgBlogGenerator.ConsoleApp", "HcgBlogGenerator.ConsoleApp\HcgBlogGenerator.ConsoleApp.csproj", "{D98C37BE-FD24-4DC4-9AD7-16D828D39689}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HcgBlogGenerator.Core", "HcgBlogGenerator.Core\HcgBlogGenerator.Core.csproj", "{1C379D48-8E36-45CA-948D-B7D6DA5142B8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{D98C37BE-FD24-4DC4-9AD7-16D828D39689}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D98C37BE-FD24-4DC4-9AD7-16D828D39689}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D98C37BE-FD24-4DC4-9AD7-16D828D39689}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1C379D48-8E36-45CA-948D-B7D6DA5142B8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1C379D48-8E36-45CA-948D-B7D6DA5142B8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1C379D48-8E36-45CA-948D-B7D6DA5142B8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1C379D48-8E36-45CA-948D-B7D6DA5142B8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
