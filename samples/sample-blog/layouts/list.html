@@ -1,0 +1,41 @@
+<!-- Use the default layout as the wrapper -->
+{{
+    layout = 'default.html'
+}}
+<!-- Content for the list page -->
+<div class="list-page">
+    <header class="list-header">
+        <h1>{{ model.Title }}</h1>
+    </header>
+
+    <section class="post-list">
+        <!-- Use model.Posts -->
+        {{ if model.Posts | array.size > 0 }}
+            <ul>
+                {{ for post in model.Posts }}
+                <li>
+                    <article class="post-summary">
+                         <!-- Access properties via the iterated 'post' variable -->
+                        <h2><a href="{{ post.Url }}">{{ post.Title }}</a></h2>
+                        <div class="post-meta">
+                             <span>{{ post.Date | date.to_string '%B %d, %Y' }}</span>
+                             {{ if post.ReadingTimeMinutes > 0 }}
+                             <span> | {{ post.ReadingTimeMinutes }} min read</span>
+                             {{ end }}
+                         </div>
+                        {{ if post.Summary }}
+                        <p>{{ post.Summary }}</p>
+                        {{ end }}
+                        <a href="{{ post.Url }}">Read More →</a>
+                    </article>
+                </li>
+                {{ end }}
+            </ul>
+        {{ else }}
+            <p>No posts found matching this criteria.</p> <!-- This should now only show if model.Posts is truly empty -->
+        {{ end }}
+    </section>
+
+    <!-- TODO: Add Pagination Controls Here -->
+
+</div>

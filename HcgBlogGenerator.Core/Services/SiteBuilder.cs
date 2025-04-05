@@ -1,19 +1,11 @@
+using System.Text.Json; // Required for JSON deserialization
+using System.Text.RegularExpressions; // Required for slug generation
+
 using HcgBlogGenerator.Core.Abstractions;
 using HcgBlogGenerator.Core.Models;
 using HcgBlogGenerator.Core.Utilities;
 
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-
-using System;
-using System.Collections.Generic;
-using System.IO; // Required for Path class
-using System.Linq;
-using System.Text; // Required for Encoding
-using System.Text.Json; // Required for JSON deserialization
-using System.Text.RegularExpressions; // Required for slug generation
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace HcgBlogGenerator.Core.Services;
 
@@ -247,8 +239,8 @@ public class SiteBuilder : ISiteBuilder {
                 item.SiteContext = siteContext; // Link back to context
 
                 // Calculate Output Path and URL (critical!)
-                item.DestinationPath = CalculateDestinationPath(item, config);
                 item.Url = CalculateUrl(item, config);
+                item.DestinationPath = CalculateDestinationPath(item, config);                
 
                 // Add to context lists
                 if (item is PostData postItem) {
