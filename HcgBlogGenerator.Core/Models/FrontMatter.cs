@@ -1,70 +1,93 @@
-using YamlDotNet.Serialization;
+using System;
+using System.Collections.Generic;
+using System.Text.Json.Serialization; // Keep for JsonExtensionData if using System.Text.Json for config/frontmatter parsing later
 
 namespace HcgBlogGenerator.Core.Models;
 
 /// <summary>
-/// Represents the metadata extracted from the YAML front matter of a content file (e.g., Markdown post or page).
+/// Represents the metadata extracted from content frontmatter (typically YAML or TOML).
+/// Uses Dictionary for flexibility, but specific properties are common.
 /// </summary>
-public class FrontMatter
-{
+public class FrontMatter {
     /// <summary>
-    /// The title of the content item.
+    /// Title of the content.
     /// </summary>
-    [YamlMember(Alias = "title")]
     public string? Title { get; set; }
 
     /// <summary>
-    /// The publication date of the content item. Required for posts.
+    /// Publication date. Nullable for pages or items without a date.
     /// </summary>
-    [YamlMember(Alias = "date")]
     public DateTime? Date { get; set; }
 
     /// <summary>
-    /// The layout file to use for rendering this content item.
-    /// If null, a default layout might be used or rendering might differ.
+    /// Last modification date. Optional.
     /// </summary>
-    [YamlMember(Alias = "layout")]
+    public DateTime? LastModified { get; set; }
+
+    /// <summary>
+    /// Layout template to use (e.g., "post", "default"). Null implies default layout.
+    /// </summary>
     public string? Layout { get; set; }
 
     /// <summary>
-    /// Indicates whether the content item is published. Defaults to true.
-    /// Items marked as false might be treated as drafts.
+    /// List of categories.
     /// </summary>
-    [YamlMember(Alias = "published")]
-    public bool Published { get; set; } = true;
+    public List<string> Categories { get; set; } = new List<string>();
 
     /// <summary>
-    /// A list of tags associated with the content item.
+    /// List of tags.
     /// </summary>
-    [YamlMember(Alias = "tags")]
-    public List<string>? Tags { get; set; }
+    public List<string> Tags { get; set; } = new List<string>();
 
     /// <summary>
-    /// A list of categories associated with the content item.
+    /// Indicates if the content is a draft. Defaults to false.
     /// </summary>
-    [YamlMember(Alias = "categories")]
-    public List<string>? Categories { get; set; }
+    public bool Draft { get; set; } = false;
 
     /// <summary>
-    /// The URL slug for the content item. If not specified, it might be generated from the filename or title.
+    /// Explicitly sets the output URL path relative to the base URL. Overrides permalink generation.
+    /// Should start and end with '/'. Example: "/my-custom-page/"
     /// </summary>
-    [YamlMember(Alias = "permalink")]
-    public string? Permalink { get; set; }
+    public string? Url { get; set; }
 
     /// <summary>
-    /// A short excerpt or summary of the content. If not specified, it might be auto-generated.
+    /// Custom slug to use in permalink generation instead of deriving from filename.
     /// </summary>
-    [YamlMember(Alias = "excerpt")]
-    public string? Excerpt { get; set; }
+    public string? Slug { get; set; }
 
     /// <summary>
-    /// Catches any additional custom properties defined in the front matter.
-    /// Allows for flexibility in defining custom metadata.
+    /// Summary or excerpt for the content. Can be generated or specified.
     /// </summary>
-    [YamlIgnore] // Ignored by YamlDotNet during direct deserialization to this type
-    public Dictionary<string, object> CustomProperties { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public string? Summary { get; set; }
 
-    // Note: YamlDotNet can deserialize extra members into a dictionary if configured,
-    // but defining CustomProperties explicitly makes the model clearer.
-    // We will handle populating this dictionary in the IFrontMatterParser implementation.
-} 
+    /// <summary>
+    /// Catches any other key-value pairs defined in the frontmatter.
+    /// Useful for custom metadata used by templates or plugins.
+    /// </summary>
+    [JsonExtensionData] // Keep attribute if using System.Text.Json for parsing
+    public Dictionary<string, object> ExtraData { get; set; } = new Dictionary<string, object>();
+
+    // Helper to get extra data with type safety and potential conversion
+    public T? Get<T>(string key) {
+        if (ExtraData.TryGetValue(key, out var value)) {
+            if (value is T typedValue) {
+                return typedValue;
+            }
+            // Handle potential type mismatches (e.g., if YAML parser reads numbers as long/double)
+            try {
+                // Special handling for common numeric conversions if needed
+                if (typeof(T) == typeof(int) && value is long longValue) return (T)(object)(int)longValue;
+                if (typeof(T) == typeof(double) && value is decimal decValue) return (T)(object)(double)decValue;
+                // Add other specific conversions if necessary based on parser behavior
+
+                return (T)Convert.ChangeType(value, typeof(T));
+            }
+            catch (Exception ex) when (ex is InvalidCastException || ex is FormatException || ex is OverflowException) {
+                // Log warning or handle appropriately
+                Console.Error.WriteLine($"Warning: Could not convert frontmatter key '{key}' value '{value}' to type {typeof(T).Name}.");
+                return default;
+            }
+        }
+        return default;
+    }
+}

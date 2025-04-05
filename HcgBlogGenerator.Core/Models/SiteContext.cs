@@ -1,80 +1,54 @@
+using System;
+using System.Collections.Generic;
+
 namespace HcgBlogGenerator.Core.Models;
 
 /// <summary>
-/// Represents the site-wide data accessible within templates, including configuration and collections.
+/// Holds the overall configuration and processed content for the site during generation.
+/// This object is often passed around during the build process.
 /// </summary>
 public class SiteContext {
-    // Note: Accessing lists of posts, pages, etc., will typically be done via the SiteContext.
-    // Example: `site.posts`, `site.pages`
+    /// <summary>
+    /// Site-wide configuration loaded from the config file.
+    /// </summary>
+    public SiteConfiguration Configuration { get; set; }
 
     /// <summary>
-    /// The base URL of the site.
+    /// List of all processed blog posts, typically sorted by date descending.
     /// </summary>
-    public string BaseUrl { get; set; }
+    public List<PostData> Posts { get; set; } // Settable for easier manipulation during build
 
     /// <summary>
-    /// The title of the site.
+    /// List of all processed standalone pages.
     /// </summary>
-    public string Title { get; set; }
+    public List<PageData> Pages { get; set; } // Settable
 
     /// <summary>
-    /// A short description of the site.
+    /// List of all other content items (e.g., drafts if loaded, custom collections).
     /// </summary>
-    public string? Description { get; set; }
+    public List<ContentItem> OtherContent { get; set; } // Settable
 
     /// <summary>
-    /// The default language of the site.
+    /// Processed taxonomy data (e.g., Categories, Tags).
+    /// Dictionary key is taxonomy type ("category", "tag"), value is another dictionary of term -> posts.
     /// </summary>
-    public string Language { get; set; }
+    public Dictionary<string, Dictionary<string, List<PostData>>> Taxonomies { get; set; } // Settable
 
     /// <summary>
-    /// All posts, typically sorted by date descending.
+    /// List of dynamically generated list pages (e.g., tag/category archives).
+    /// Populated during the build process after taxonomies are processed.
     /// </summary>
-    public IReadOnlyList<Post> Posts { get; set; }
+    public List<ListPageData> ListPages { get; set; } // Settable
 
-    /// <summary>
-    /// All pages.
-    /// </summary>
-    public IReadOnlyList<Page> Pages { get; set; }
+    // Constructor requiring the essential configuration
+    public SiteContext(SiteConfiguration configuration) {
+        this.Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 
-    /// <summary>
-    /// All content items (posts and pages combined).
-    /// </summary>
-    public IReadOnlyList<ContentItem> AllContent { get; set; }
-
-    /// <summary>
-    /// Custom data from the _config.json `data` field.
-    /// </summary>
-    public IReadOnlyDictionary<string, object> Data { get; set; }
-
-    /// <summary>
-    /// The current time during the build process. Can be used for cache busting, etc.
-    /// </summary>
-    public DateTime Time { get; } = DateTime.UtcNow;
-
-    // Potential future additions:
-    // public ILookup<string, Post> PostsByTag { get; init; }
-    // public ILookup<string, Post> PostsByCategory { get; init; }
-    // public IReadOnlyList<Page> NavigationPages { get; init; } // Filtered pages for menus
-
-    /// <summary>
-    /// Creates a SiteContext from a SiteConfiguration and collections.
-    /// </summary>
-    public static SiteContext FromConfiguration(SiteConfiguration config, IEnumerable<Post> posts, IEnumerable<Page> pages) {
-        var sortedPosts = posts.OrderByDescending(p => p.Date ?? DateTime.MinValue).ToList();
-        var allPages = pages.ToList(); // Assuming order isn't critical for pages, or sort if needed
-        var allContent = new List<ContentItem>(sortedPosts);
-        allContent.AddRange(allPages);
-
-        return new SiteContext {
-            BaseUrl = config.BaseUrl,
-            Title = config.Title,
-            Description = config.Description,
-            Language = config.Language,
-            Posts = sortedPosts.AsReadOnly(),
-            Pages = allPages.AsReadOnly(),
-            AllContent = allContent.AsReadOnly(), // Consider sorting if needed
-            Data = config.Data // Should be ReadOnlyDictionary, ensure config loader returns this or convert
-        };
+        // Initialize collections
+        this.Posts = new List<PostData>();
+        this.Pages = new List<PageData>();
+        this.OtherContent = new List<ContentItem>();
+        this.Taxonomies = new Dictionary<string, Dictionary<string, List<PostData>>>();
+        this.ListPages = new List<ListPageData>();
     }
 }

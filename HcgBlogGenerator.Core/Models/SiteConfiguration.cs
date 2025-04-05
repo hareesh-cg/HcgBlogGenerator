@@ -1,113 +1,132 @@
-using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
 
 namespace HcgBlogGenerator.Core.Models;
 
 /// <summary>
-/// Represents the overall configuration for the static site generation process,
-/// typically loaded from a _config.json file.
+/// Represents the site-wide configuration loaded from the config file (e.g., config.json).
 /// </summary>
-public class SiteConfiguration
-{
+public class SiteConfiguration {
     /// <summary>
-    /// The base URL of the site (e.g., "https://www.example.com").
+    /// The base URL of the deployed site (e.g., "https://www.example.com").
     /// Used for generating absolute URLs in feeds, sitemaps, etc.
     /// </summary>
-    [JsonProperty("baseUrl")]
     public string BaseUrl { get; set; } = string.Empty;
 
     /// <summary>
-    /// The title of the site.
+    /// The main title of the website.
     /// </summary>
-    [JsonProperty("title")]
     public string Title { get; set; } = "My Awesome Blog";
 
     /// <summary>
-    /// A short description of the site, often used in meta tags.
+    /// A short description or tagline for the website.
     /// </summary>
-    [JsonProperty("description")]
-    public string? Description { get; set; }
+    public string Description { get; set; } = string.Empty;
 
     /// <summary>
-    /// The default language of the site (e.g., "en-US").
+    /// Default language code for the site (e.g., "en-US").
     /// </summary>
-    [JsonProperty("language")]
-    public string Language { get; set; } = "en-US";
+    public string Language { get; set; } = "en";
 
     /// <summary>
-    /// The directory where the generated site will be written, relative to the execution root.
-    /// Defaults to "_site".
+    /// Number of posts to display per page on listing pages.
     /// </summary>
-    [JsonProperty("outputDirectory")]
-    public string OutputDirectory { get; set; } = "_site";
+    public int PostsPerPage { get; set; } = 10;
 
     /// <summary>
-    /// The directory containing source files (markdown, assets, etc.), relative to the execution root.
-    /// Defaults to the current directory ".".
+    /// The directory containing content files (posts, pages), relative to the source root.
     /// </summary>
-    [JsonProperty("sourceDirectory")]
-    public string SourceDirectory { get; set; } = ".";
+    public string ContentDirectory { get; set; } = "content";
 
     /// <summary>
-    /// The directory containing layout files, relative to the source directory.
-    /// Defaults to "_layouts".
+    /// The directory containing template files (layouts, includes), relative to the source root.
     /// </summary>
-    [JsonProperty("layoutsDirectory")]
-    public string LayoutsDirectory { get; set; } = "_layouts";
+    public string TemplateDirectory { get; set; } = "layouts"; // Or maybe includes layouts/, includes/?
 
     /// <summary>
-    /// The directory containing include files (partials), relative to the source directory.
-    /// Defaults to "_includes".
+    /// The directory for includes/partials, relative to the TemplateDirectory.
     /// </summary>
-    [JsonProperty("includesDirectory")]
-    public string IncludesDirectory { get; set; } = "_includes";
+    public string IncludesDirectory { get; set; } = "includes";
 
     /// <summary>
-    /// The directory containing posts, relative to the source directory.
-    /// Defaults to "_posts".
+    /// The directory containing static files to be copied directly, relative to the source root.
     /// </summary>
-    [JsonProperty("postsDirectory")]
-    public string PostsDirectory { get; set; } = "_posts";
+    public string StaticDirectory { get; set; } = "static";
 
     /// <summary>
-    /// The directory containing static assets (CSS, JS, images), relative to the source directory.
-    /// Defaults to "_assets".
+    /// The directory containing SCSS/SASS files, relative to the source root.
     /// </summary>
-    [JsonProperty("assetsDirectory")]
-    public string AssetsDirectory { get; set; } = "_assets";
+    public string StylesDirectory { get; set; } = "styles";
 
     /// <summary>
-    /// The directory containing draft posts, relative to the source directory.
-    /// Defaults to "_drafts".
+    /// The main SCSS/SASS file to compile, relative to the StylesDirectory.
     /// </summary>
-    [JsonProperty("draftsDirectory")]
-    public string DraftsDirectory { get; set; } = "_drafts";
+    public string StyleEntryPoint { get; set; } = "main.scss";
 
     /// <summary>
-    /// Indicates whether to include draft posts in the build. Defaults to false.
-    /// Can be overridden by command-line arguments.
+    /// The directory where the generated site will be written, relative to the execution path or a specified output path.
     /// </summary>
-    [JsonProperty("includeDrafts")]
-    public bool IncludeDrafts { get; set; } = false;
+    public string OutputDirectory { get; set; } = "_site"; // Common default like Jekyll
 
     /// <summary>
-    /// The default number of posts per page for pagination.
-    /// Null means pagination is disabled by default.
+    /// Permalink structure for posts. Placeholders like :year, :month, :day, :title, :slug are common.
+    /// Example: "/blog/:year/:month/:slug/"
     /// </summary>
-    [JsonProperty("postsPerPage")]
-    public int? PostsPerPage { get; set; }
+    public string PostPermalink { get; set; } = "/posts/:slug/";
 
     /// <summary>
-    /// A dictionary for storing custom data that can be accessed in templates.
+    /// Permalink structure for pages. Placeholder :slug is common.
+    /// Example: "/:slug/"
     /// </summary>
-    [JsonProperty("data")]
-    public Dictionary<string, object> Data { get; set; } = new();
+    public string PagePermalink { get; set; } = "/:slug/";
 
     /// <summary>
-    /// Configuration settings specific to plugins.
-    /// The key is the plugin name (case-insensitive), and the value is the plugin-specific configuration object.
+    /// Controls whether draft posts are built.
     /// </summary>
-    [JsonProperty("plugins")]
-    public Dictionary<string, object> PluginSettings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public bool BuildDrafts { get; set; } = false;
 
-    // TODO: Add more configuration options as needed (e.g., author info, social links, build options)
-} 
+    /// <summary>
+    /// Controls whether future-dated posts are built.
+    /// </summary>
+    public bool BuildFutureDated { get; set; } = false;
+
+    /// <summary>
+    /// Base path for generated tag pages (e.g., "/tags/").
+    /// </summary>
+    public string TagUrlBasePath { get; set; } = "/tags/";
+
+    /// <summary>
+    /// Base path for generated category pages (e.g., "/categories/").
+    /// </summary>
+    public string CategoryUrlBasePath { get; set; } = "/categories/";
+
+    /// <summary>
+    /// Configuration specific to the RSS feed generation.
+    /// </summary>
+    public RssFeedConfiguration Rss { get; set; } = new RssFeedConfiguration();
+
+    /// <summary>
+    /// Allows for arbitrary additional configuration data.
+    /// </summary>
+    public Dictionary<string, object> ExtraData { get; set; } = new Dictionary<string, object>();
+}
+
+/// <summary>
+/// Configuration specific to RSS feed generation.
+/// </summary>
+public class RssFeedConfiguration {
+    /// <summary>
+    /// Enable or disable RSS feed generation.
+    /// </summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Output path for the RSS feed file relative to the output directory.
+    /// </summary>
+    public string OutputPath { get; set; } = "feed.xml";
+
+    /// <summary>
+    /// Maximum number of posts to include in the feed.
+    /// </summary>
+    public int MaxItems { get; set; } = 20;
+}

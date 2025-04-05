@@ -1,74 +1,50 @@
+using System;
+using System.Text.Json.Serialization;
+
 namespace HcgBlogGenerator.Core.Models;
 
 /// <summary>
-/// Abstract base class for content items like pages and posts
-/// that are generated from source files (e.g., Markdown).
+/// Base class representing a piece of content read from the source.
 /// </summary>
-public abstract class ContentItem
-{
+public abstract class ContentItem {
     /// <summary>
-    /// The absolute path to the original source file.
+    /// Original source path relative to the content root (e.g., "posts/my-first-post.md").
     /// </summary>
-    public required string SourcePath { get; init; }
+    public string SourcePath { get; set; } = string.Empty;
 
     /// <summary>
-    /// The absolute path where the processed output file will be written.
+    /// Destination path relative to the output root (e.g., "posts/my-first-post/index.html").
+    /// This is the path where the file will be written.
     /// </summary>
-    public required string OutputPath { get; init; }
+    public string DestinationPath { get; set; } = string.Empty;
 
     /// <summary>
-    /// The relative URL for this content item within the generated site (e.g., "/about/", "/posts/my-first-post.html").
-    /// Starts with a '/'.
+    /// The extracted frontmatter metadata.
     /// </summary>
-    public required string Url { get; init; }
+    public FrontMatter FrontMatter { get; set; } = new FrontMatter();
 
     /// <summary>
-    /// The parsed front matter associated with this content item.
-    /// </summary>
-    public required FrontMatter FrontMatter { get; init; }
-
-    /// <summary>
-    /// The raw content of the source file *after* the front matter has been removed.
-    /// </summary>
-    public required string RawContent { get; init; }
-
-    /// <summary>
-    /// The final HTML content after processing Markdown and applying layouts/templates.
-    /// This is typically set during the rendering phase.
+    /// The processed HTML content (body), after Markdown conversion.
     /// </summary>
     public string HtmlContent { get; set; } = string.Empty;
 
     /// <summary>
-    /// A reference to the global site configuration. Useful for accessing site-wide data within templates.
+    /// The final URL path relative to the site root (e.g., "/posts/my-first-post/").
+    /// Calculated based on configuration and source path/frontmatter. Used for linking.
     /// </summary>
-    public required SiteConfiguration Site { get; init; }
-
-    // Common properties derived from FrontMatter for easier access in templates
-    // These can be overridden by specific content types (like Post) if needed.
+    public string Url { get; set; } = string.Empty;
 
     /// <summary>
-    /// The title of the content item, usually derived from front matter.
+    /// Reference to the overall site context, useful for accessing global data during processing or templating.
+    /// Be cautious about circular references if serializing.
     /// </summary>
-    public virtual string? Title => FrontMatter.Title;
+    [JsonIgnore] // Avoid serialization issues
+    public SiteContext? SiteContext { get; set; }
 
     /// <summary>
-    /// The date associated with the content item, usually derived from front matter.
+    /// Holds calculated SEO metadata for this content item.
+    /// Populated by the SeoPlugin. Null if SEO data wasn't generated.
     /// </summary>
-    public virtual DateTime? Date => FrontMatter.Date;
-
-    /// <summary>
-    /// The layout specified in the front matter.
-    /// </summary>
-    public virtual string? Layout => FrontMatter.Layout;
-
-    /// <summary>
-    /// The excerpt or summary, usually derived from front matter.
-    /// </summary>
-    public virtual string? Excerpt => FrontMatter.Excerpt;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ContentItem"/> class.
-    /// Protected constructor forces use through derived classes.
-    /// </summary>
-    protected ContentItem() { }
-} 
+    [JsonIgnore] // Avoid serializing this complex object if ContentItem is ever serialized directly
+    public SeoData? Seo { get; set; }
+}
