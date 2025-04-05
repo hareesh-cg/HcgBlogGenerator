@@ -72,7 +72,7 @@ dotnet tool install HcgBlogGenerator.Tool --version <VERSION>
 
 # Verify installation
 hcg-blog --version
-
+```
 
 ## Getting Started
 
