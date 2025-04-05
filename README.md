@@ -216,7 +216,7 @@ Key configuration options (see samples/sample-blog/config.json for a full exampl
     
 -   **Data Access:**
     
-    -   **Current Item Properties:** Directly access properties of the current page/post model (e.g., {{ Title }}, {{ HtmlContent }}, {{ Date }}, {{ ReadingTimeMinutes }}, {{ FrontMatter }}, {{ Seo }}).
+    -   **Current Item Properties:** Access properties of the current page/post model via {{ model }} (e.g., {{ model.Title }}, {{ model.HtmlContent }}, {{ model.Date }}, {{ model.ReadingTimeMinutes }}, {{ model.FrontMatter }}, {{ model.Seo }}).
         
     -   **Configuration:** Access via {{ config }} (e.g., {{ config.BaseUrl }}, {{ config.Title }}, {{ config.ExtraData.MyCustomValue }}).
         
