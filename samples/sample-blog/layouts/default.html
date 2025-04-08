@@ -1,1 +1,32 @@
-<!DOCTYPE html><html lang="{{ config.Language ?? 'en' }}"><head>    <meta charset="utf-8">    <meta name="viewport" content="width=device-width, initial-scale=1.0">    <!-- Basic Meta Tags (SEO Plugin should enhance/replace these) -->    <title>{{ model.Title }} - {{ config.Title }}</title>    <meta name="description" content="{{ model.Seo?.MetaDescription }}">    <!-- Link to compiled CSS -->    <link rel="stylesheet" href="/css/main.css">    <!-- Placeholder for OpenGraph/Twitter Card Meta (from SEO Plugin) --></head><body>    <div class="container">        {{ include 'header.html' }}        <main>            <!-- Render the content from the specific page/post layout -->            {{ model.HtmlContent }}        </main>        {{ include 'footer.html' }}    </div>    <!-- Link to JS -->    <script src="/js/main.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="{{ config.Language ?? 'en' }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Basic Meta Tags (SEO Plugin should enhance/replace these) -->
+    <title>{{ model.Title }} - {{ config.Title }}</title>
+    <meta name="description" content="{{ model.Seo?.MetaDescription }}">
+    <!-- Link to compiled CSS -->
+    <link rel="stylesheet" href="/css/main.css">
+    <!-- Placeholder for OpenGraph/Twitter Card Meta (from SEO Plugin) -->
+</head>
+<body>
+    <div class="container">
+        {{ include 'header.html' }}
+
+        <main>
+            <!-- Render the content from the specific page/post layout -->
+            {{ if main_content }}
+                {{ main_content }}
+            {{ else }}
+                <!-- Optional default content if child doesn't override -->
+                Default content goes here if not overridden.
+            {{ end }}
+        </main>
+
+        {{ include 'footer.html' }}
+    </div>
+    <!-- Link to JS -->
+    <script src="/js/main.js"></script>
+</body>
+</html>

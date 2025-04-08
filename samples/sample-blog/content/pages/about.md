@@ -1,7 +1,7 @@
 ---
 title: About This Blog
 slug: about
-layout: default
+layout: page
 sitemapPriority: 0.7
 ---
 

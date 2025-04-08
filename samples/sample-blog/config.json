@@ -5,7 +5,7 @@
   "language": "en-US",
   "postsPerPage": 5,
   "contentDirectory": "content",
-  "templateDirectory": "layouts",
+  "templateDirectory": "includes",
   "includesDirectory": "includes",
   "staticDirectory": "static",
   "stylesDirectory": "styles",

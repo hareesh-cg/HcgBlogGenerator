@@ -1,6 +1,6 @@
 ---
 title: Welcome!
-layout: default # Uses the default layout
+layout: page
 sitemapPriority: 1.0 # Example: Homepage has highest priority
 ---
 
