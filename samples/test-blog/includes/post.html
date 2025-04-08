@@ -1,0 +1,49 @@
+<!-- Use the default layout as the wrapper -->
+{{ capture main_content }}
+<article class="post">
+    <header>
+        <h1>{{ model.Title }}</h1>
+        <div class="post-meta">
+            <span>Published: {{ model.Date | date.to_string '%B %d, %Y' }}</span>
+            {{ if model.LastModified && model.LastModified != model.Date }}
+            <span> | Updated: {{ model.LastModified | date.to_string '%B %d, %Y' }}</span>
+            {{ end }}
+            {{ if model.ReadingTimeMinutes > 0 }}
+            <span> | {{ model.ReadingTimeMinutes }} min read</span>
+            {{ end }}
+        </div>
+        {{ if model.FrontMatter.Categories || model.FrontMatter.Tags }}
+        <div class="taxonomies">
+            {{ if model.FrontMatter.Categories }}
+            <span class="categories">
+                Categories:
+                {{ for category in model.FrontMatter.Categories }}
+                <a href="{{ config.CategoryUrlBasePath }}{{ category | string.downcase | slugify }}/">{{ category }}</a>{{ for.last ? '' : ', ' }}
+                {{ end }}
+            </span>
+            {{ end }}
+            {{ if model.FrontMatter.Tags }}
+            <span class="tags">
+                Tags:
+                {{ for tag in model.FrontMatter.Tags }}
+                <a href="{{ config.TagUrlBasePath }}{{ tag | string.downcase | slugify }}/">{{ tag }}</a>{{ for.last ? '' : ', ' }}
+                {{ end }}
+            </span>
+            {{ end }}
+        </div>
+        {{ end }}
+    </header>
+
+    <div class="post-content">
+        <!-- Render the actual post content (already processed HTML) -->
+        {{ model.HtmlContent }}
+    </div>
+
+    <footer>
+        <!-- TODO: Add Next/Previous Post Links -->
+        <!-- {{ if model.PreviousPost }} <a href="{{ model.PreviousPost.Url }}">Previous</a> {{ end }} -->
+        <!-- {{ if model.NextPost }} <a href="{{ model.NextPost.Url }}">Next</a> {{ end }} -->
+    </footer>
+</article>
+{{ end }}
+{{ include "default.html" }}

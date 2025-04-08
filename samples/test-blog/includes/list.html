@@ -1,0 +1,59 @@
+{{ capture main_content  }}
+<!-- Content for the list page -->
+<div class="list-page">
+    <header class="list-header">
+        <!-- Title comes from ListPageData via model -->
+        <h1>{{ model.Title }}</h1>
+    </header>
+
+    <section class="post-list">
+        {{ if model.Posts | array.size > 0 }}
+            <ul>
+                {{ for post in model.Posts }}
+                <li>
+                    <article class="post-summary">
+                        <h2><a href="{{ post.Url }}">{{ post.Title }}</a></h2>
+                        <div class="post-meta">
+                             <span>{{ post.Date | date.to_string '%B %d, %Y' }}</span>
+                             {{ if post.ReadingTimeMinutes > 0 }}
+                             <span> | {{ post.ReadingTimeMinutes }} min read</span>
+                             {{ end }}
+                         </div>
+                        {{ if post.Summary }}
+                        <p>{{ post.Summary }}</p>
+                        {{ end }}
+                        <a href="{{ post.Url }}">Read More →</a>
+                    </article>
+                </li>
+                {{ end }}
+            </ul>
+        {{ else }}
+            <p>No posts found matching this criteria.</p>
+        {{ end }}
+    </section>
+
+    <!-- ****** ADD PAGINATION CONTROLS ****** -->
+    {{ if model.PagerInfo && model.PagerInfo.TotalPages > 1 }}
+    <nav class="pagination" aria-label="Pagination">
+        {{ if model.PagerInfo.HasPreviousPage }}
+            <a href="{{ model.PagerInfo.PreviousPageUrl }}" class="prev-page" rel="prev">← Previous Page</a>
+        {{ else }}
+            <span class="prev-page disabled">← Previous Page</span>
+        {{ end }}
+
+        <span class="page-number">Page {{ model.PagerInfo.CurrentPage }} of {{ model.PagerInfo.TotalPages }}</span>
+
+        {{ if model.PagerInfo.HasNextPage }}
+            <a href="{{ model.PagerInfo.NextPageUrl }}" class="next-page" rel="next">Next Page →</a>
+        {{ else }}
+            <span class="next-page disabled">Next Page →</span>
+        {{ end }}
+        <!-- Optional: Add page number links (requires more logic) -->
+        <!-- Example: Iterate 1..TotalPages, use PageUrlTemplate -->
+    </nav>
+    {{ end }}
+    <!-- ****** END PAGINATION CONTROLS ****** -->
+
+</div>
+{{ end }}
+{{ include "default.html" }}
