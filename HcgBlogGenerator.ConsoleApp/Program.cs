@@ -1,7 +1,7 @@
 using HcgBlogGenerator.ConsoleApp.Commands;
 using HcgBlogGenerator.Core.Abstractions;
 using HcgBlogGenerator.Core.Services;
-using HcgBlogGenerator.Core.Utilities; // For AddHcgBlogGeneratorCore
+using HcgBlogGenerator.Core.Utilities;
 
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,7 +22,7 @@ namespace HcgBlogGenerator.ConsoleApp {
     public class Program {
         public static async Task<int> Main(string[] args) {
             // await BuildNow("D:\\Projects\\Websites\\Test\\testing3", "D:\\Projects\\Websites\\Test\\result3");
-            await ServeNow("D:\\Projects\\CSharp\\HcgBlogGenerator\\samples\\sample-blog", "D:\\Projects\\Websites\\Test\\result3", 3000);
+            await ServeNow("D:\\Projects\\CSharp\\HcgBlogGenerator\\samples\\test-blog", "D:\\Projects\\Websites\\Test\\result3", 3000);
             // return await ExecuteCommand(args);
 
             return 0;
@@ -36,7 +36,7 @@ namespace HcgBlogGenerator.ConsoleApp {
 
             // 1. Configure Logging
             services.AddLogging(configure => {
-                configure.SetMinimumLevel(LogLevel.Information);
+                configure.SetMinimumLevel(LogLevel.Warning);
                 configure.AddSimpleConsole(options => {
                     options.IncludeScopes = true;
                     options.TimestampFormat = "[HH:mm:ss] ";

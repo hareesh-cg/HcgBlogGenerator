@@ -29,6 +29,9 @@ public class ListPageData : ContentItem {
     /// </summary>
     public string TermSlug { get; set; } = string.Empty;
 
-    // Future: Add pagination information here
-    // public Pager<PostData>? PagerInfo { get; set; }
+    /// <summary>
+    /// Pagination details for this specific list page.
+    /// Null if the list is not paginated.
+    /// </summary>
+    public Pager<PostData>? PagerInfo { get; set; }
 }

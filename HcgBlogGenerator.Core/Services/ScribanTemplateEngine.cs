@@ -73,26 +73,25 @@ public class ScribanTemplateEngine : ITemplateEngine {
 
                     // Parse the template. Parsing catches syntax errors early.
                     var template = Template.Parse(templateContent, relativePath); // Use path for better error messages
-
                     if (template.HasErrors) {
                         errorCount++;
                         LogTemplateErrors(template.Messages, relativePath);
-                        // Optionally skip caching errored templates, or cache them to prevent re-parsing
-                        // Let's skip caching bad ones for now.
-                        continue;
-                    }
-
-                    if (!_cachedTemplates.TryAdd(templateKey, template)) {
-                        _logger.LogWarning("Could not add template {TemplateKey} to cache (already exists?). Path: {TemplatePath}", templateKey, relativePath);
+                        // skip caching errored templates, or cache them to prevent re-parsing
                     }
                     else {
-                        loadedCount++;
-                        _logger.LogTrace("Successfully parsed and cached template: {TemplateKey}", templateKey);
+                        // Try adding to cache only if parse was OK
+                        if (!_cachedTemplates.TryAdd(templateKey, template)) {
+                            _logger.LogWarning("Could not add template {TemplateKey} to cache (already exists?). Path: {TemplatePath}", templateKey, relativePath);
+                        }
+                        else {
+                            loadedCount++;
+                            _logger.LogTrace("Successfully parsed and cached template: {TemplateKey}", templateKey);
+                        }
                     }
                 }
                 catch (Exception ex) {
                     errorCount++;
-                    _logger.LogError(ex, "Failed to load or parse template file: {TemplatePath}", relativePath);
+                    _logger.LogError(ex, "Failed to load or parse template file: {TemplatePath}", relativePath);                    
                 }
             }
 

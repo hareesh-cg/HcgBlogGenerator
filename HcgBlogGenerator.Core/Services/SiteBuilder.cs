@@ -47,8 +47,7 @@ public class SiteBuilder : ISiteBuilder {
         SiteContext? siteContext = null;
 
         try {
-            // 1. Load Configuration
-            _logger.LogDebug("Loading configuration from: {ConfigPath}", configPath);
+            _logger.LogInformation("--- Build Step 1: Load Configuration --- from: {ConfigPath}", configPath);
             configuration = await LoadConfigurationAsync(configPath, sourceFileSystem, cancellationToken);
             if (configuration == null) {
                 _logger.LogCritical("Site configuration could not be loaded. Aborting build.");
@@ -56,59 +55,69 @@ public class SiteBuilder : ISiteBuilder {
             }
             ValidateConfiguration(configuration);
 
-            // 2. Initialize Site Context (after config loaded)
+            // Initialize Site Context (after config loaded)
             siteContext = new SiteContext(configuration);
 
-            // --- Run PreBuild Plugins ---
+            _logger.LogInformation("--- Build Step 2: Run PreBuild Plugins ---");
             await _pluginManager.RunPluginsAsync(PipelineStage.PreBuild, siteContext, sourceFileSystem, outputFileSystem, cancellationToken);
 
-            // 3. Initialize Output Directory
+            _logger.LogInformation("--- Build Step 3: Initialize Output Directory ---");
             await outputFileSystem.CreateDirectoryAsync(string.Empty, cancellationToken);
 
-            // 4. Initialize Template Engine
-            _logger.LogInformation("Initializing template engine...");
+            _logger.LogInformation("--- Build Step 4: Initialize Template Engine ---");
             await _templateEngine.InitializeAsync(configuration, sourceFileSystem, cancellationToken);
 
-            // 5. Discover and Process Content
-            _logger.LogInformation("Discovering and processing content from: {ContentDirectory}", configuration.ContentDirectory);
+            _logger.LogInformation("--- Build Step 5: Process Content Files --- from: {ContentDirectory}", configuration.ContentDirectory);
             await ProcessContentFilesAsync(siteContext, sourceFileSystem, cancellationToken);
+            _logger.LogDebug("Counts after ProcessContentFilesAsync - Posts: {P}, Pages: {A}, Other: {O}", siteContext.Posts.Count, siteContext.Pages.Count, siteContext.OtherContent.Count);
 
-            // --- Run PostContentProcessing Plugins ---
+            _logger.LogInformation("--- Build Step 6: Run PostContentProcessing Plugins ---");
             await _pluginManager.RunPluginsAsync(PipelineStage.PostContentProcessing, siteContext, sourceFileSystem, outputFileSystem, cancellationToken);
+            _logger.LogDebug("Counts after PostContentProcessing Plugins - Posts: {P}, Pages: {A}, Other: {O}", siteContext.Posts.Count, siteContext.Pages.Count, siteContext.OtherContent.Count);
 
-            // 6. Post-Processing (Sorting, Relationships, Taxonomies, Pagination)
-            _logger.LogInformation("Performing post-processing...");
+            // Post-Processing (Sorting, Relationships, Taxonomies, Pagination)
+            _logger.LogInformation("--- Build Step 7: Perform Post-Processing ---");
             PerformPostProcessing(siteContext);
+            _logger.LogDebug("Counts after PerformPostProcessing - Posts: {P}, Pages: {A}, Taxonomies: {T}", siteContext.Posts.Count, siteContext.Pages.Count, siteContext.Taxonomies.Count);
 
-            // 7. Process Taxonomies (Generate taxonomy pages)
-            await GenerateListPagesAsync(siteContext, cancellationToken);
+            _logger.LogInformation("--- Build Step 8: Generate List Pages ---");
+            await GenerateListPagesAsync(siteContext, cancellationToken); // Creates ListPages from Taxonomies + Blog Index
+            _logger.LogDebug("Counts after GenerateListPagesAsync - ListPages: {L}", siteContext.ListPages.Count);
 
-            // TODO: 8. Process Paginated Lists (Generate list pages)
+            // TODO: 9. Process Paginated Lists (Generate list pages)
             // await ProcessPaginationAsync(siteContext, outputFileSystem, cancellationToken);
 
-            // 9. Render Content Pages
-            _logger.LogInformation("Rendering content pages...");
+            // Render Content Pages
+            _logger.LogInformation("--- Build Step 10: Render Content Pages ---");
+            _logger.LogDebug("Attempting to render {Count} Posts...", siteContext.Posts.Count);
             await RenderContentItemsAsync(siteContext.Posts, siteContext, outputFileSystem, cancellationToken);
+            _logger.LogDebug("Attempting to render {Count} Pages...", siteContext.Pages.Count);
             await RenderContentItemsAsync(siteContext.Pages, siteContext, outputFileSystem, cancellationToken);
+            _logger.LogDebug("Attempting to render {Count} ListPages...", siteContext.ListPages.Count);
             await RenderContentItemsAsync(siteContext.ListPages, siteContext, outputFileSystem, cancellationToken);
+
             // TODO: Run PostRender Plugins here if implemented (needs careful thought on data flow)
+            _logger.LogInformation("--- Build Step 11: Run PostRender Plugins ---");
             await _pluginManager.RunPluginsAsync(PipelineStage.PostRender, siteContext, sourceFileSystem, outputFileSystem, cancellationToken);
 
-            // 10. Compile CSS
-            _logger.LogInformation("Compiling CSS...");
+            // Compile CSS
+            _logger.LogInformation("--- Build Step 11: Compile CSS ---");
             await CompileAndWriteCssAsync(configuration, sourceFileSystem, outputFileSystem, cancellationToken);
 
-            // 11. Copy Static Files
-            _logger.LogInformation("Copying static files from: {StaticDirectory}", configuration.StaticDirectory);
+            // Copy Static Files
+            _logger.LogInformation("--- Build Step 12: Copy Static Files --- from: {StaticDirectory}", configuration.StaticDirectory);
             await CopyStaticFilesAsync(configuration.StaticDirectory, sourceFileSystem, outputFileSystem, cancellationToken);
 
             // --- Run PostBuild Plugins ---
             // Run AFTER essential files (content, css, static) are written
+            _logger.LogInformation("--- Build Step 13: Run PostBuild Plugins ---");
             await _pluginManager.RunPluginsAsync(PipelineStage.PostBuild, siteContext, sourceFileSystem, outputFileSystem, cancellationToken);
+            
+            // --- Run BuildComplete Plugins --- (Run even before final success log)
+            _logger.LogInformation("--- Build Step 14: Run BuildComplete Plugins ---");
+            await _pluginManager.RunPluginsAsync(PipelineStage.BuildComplete, siteContext, sourceFileSystem, outputFileSystem, cancellationToken);
 
             stopwatch.Stop();
-            // --- Run BuildComplete Plugins --- (Run even before final success log)
-            await _pluginManager.RunPluginsAsync(PipelineStage.BuildComplete, siteContext, sourceFileSystem, outputFileSystem, cancellationToken);
             _logger.LogInformation("Site build completed successfully in {ElapsedMilliseconds} ms.", stopwatch.ElapsedMilliseconds);
         }
         catch (OperationCanceledException) {
@@ -510,6 +519,7 @@ public class SiteBuilder : ISiteBuilder {
 
                 // --- Render ---
                 // The ITemplateEngine expects the cache key (path relative to template root)
+                _logger.LogDebug("Attempting to render item '{SourcePath}' using template cache key '{LayoutKey}'", item.SourcePath, layoutCacheKey);
                 string renderedHtml = await _templateEngine.RenderAsync(layoutCacheKey, item, cancellationToken);
 
                 // --- Write ---
@@ -629,7 +639,9 @@ public class SiteBuilder : ISiteBuilder {
     private Task GenerateListPagesAsync(SiteContext siteContext, CancellationToken cancellationToken) {
         _logger.LogInformation("Generating taxonomy listing pages...");
         var config = siteContext.Configuration;
-        int generatedCount = 0;
+        int totalPagesGenerated = 0;
+        // Store newly generated pages here temporarily to avoid modifying collection while iterating
+        var newListPages = new List<ListPageData>();
 
         foreach (var taxonomyPair in siteContext.Taxonomies) {
             cancellationToken.ThrowIfCancellationRequested();
@@ -661,89 +673,146 @@ public class SiteBuilder : ISiteBuilder {
             foreach (var termPair in terms) {
                 cancellationToken.ThrowIfCancellationRequested();
                 string termName = termPair.Key;
-                List<PostData> termPosts = termPair.Value;
+                List<PostData> allTermPosts = termPair.Value.OrderByDescending(p => p.Date).ToList();
 
-                if (!termPosts.Any()) continue; // Skip terms with no posts
+                if (!allTermPosts.Any()) continue; // Skip terms with no posts
 
                 // Generate slug for URL/Path
                 string termSlug = StringUtils.Slugify(termName);
 
-                // Create ListPageData instance
-                var listPage = new ListPageData {
-                    ListType = listType,
-                    Term = termName,
-                    TermSlug = termSlug,
-                    Posts = termPosts.OrderByDescending(p => p.Date).ToList(), // Ensure posts are sorted
-                    SiteContext = siteContext,
-                    // Generate Title for the page
-                    FrontMatter = new FrontMatter {
-                        // Use term name for title, layout from constants
-                        Title = $"{listType}: {termName}",
-                        Layout = defaultLayout
-                        // Add other frontmatter defaults if needed (e.g., sitemap priority/freq for lists)
-                    },
-                    // Set HtmlContent to empty - layout is responsible for displaying list
-                    HtmlContent = string.Empty,
-                    // Calculate URL and DestinationPath
-                    Url = $"/{basePath}/{termSlug}/",
-                    DestinationPath = $"{basePath}/{termSlug}/index.html",
-                    // Set SourcePath conceptually (doesn't exist on disk)
-                    SourcePath = $"_generated/{taxonomyType}/{termSlug}.md" // Conceptual path
-                };
+                // --- Pagination Logic for Taxonomies ---
+                int postsPerPage = config.PostsPerPage <= 0 ? int.MaxValue : config.PostsPerPage; // Use config value
+                int totalPosts = allTermPosts.Count;
+                int totalPages = (int)Math.Ceiling((double)totalPosts / postsPerPage);
 
-                // Recalculate URL/Dest based on FrontMatter.Url override if needed? Usually not for generated pages.
+                _logger.LogDebug("Generating {TotalPages} pages for {ListType} '{Term}' ({TotalPosts} posts)...", totalPages, listType, termName, totalPosts);
 
-                siteContext.ListPages.Add(listPage);
-                generatedCount++;
-                _logger.LogTrace("Generated list page for {ListType} '{Term}' at URL {Url}", listType, termName, listPage.Url);
-            }
-        }
+                string baseUrlPath = $"/{basePath}/{termSlug}"; // Base URL for this term
 
-        _logger.LogInformation("Generated {Count} taxonomy list pages.", generatedCount);
+                for (int currentPage = 1; currentPage <= totalPages; currentPage++) {
+                    cancellationToken.ThrowIfCancellationRequested();
 
+                    var postsForThisPage = allTermPosts
+                        .Skip((currentPage - 1) * postsPerPage)
+                        .Take(postsPerPage)
+                        .ToList();
 
-        // --- Generate Blog Index Page ---
+                    // Calculate URL and Destination Path for this specific page number
+                    string pageUrl, pageDestinationPath;
+                    if (currentPage == 1) {
+                        pageUrl = $"{baseUrlPath}/"; // Page 1 is at the root for the term
+                        pageDestinationPath = $"{basePath}/{termSlug}/index.html";
+                    }
+                    else {
+                        // Define structure for page > 1 (e.g., /tags/csharp/page/2/)
+                        pageUrl = $"{baseUrlPath}/page/{currentPage}/";
+                        pageDestinationPath = $"{basePath}/{termSlug}/page/{currentPage}/index.html";
+                    }
+
+                    var listPage = new ListPageData {
+                        ListType = listType,
+                        Term = termName,
+                        TermSlug = termSlug,
+                        Posts = postsForThisPage, // Only posts for *this* page
+                        SiteContext = siteContext,
+                        FrontMatter = new FrontMatter {
+                            Title = $"{listType}: {termName}" + (totalPages > 1 ? $" (Page {currentPage})" : ""),
+                            Layout = defaultLayout
+                        },
+                        HtmlContent = string.Empty,
+                        Url = pageUrl,
+                        DestinationPath = pageDestinationPath,
+                        SourcePath = $"_generated/{taxonomyType}/{termSlug}/page{currentPage}.md", // Conceptual path
+                        PagerInfo = new Pager<PostData> // Populate Pager
+                        {
+                            ItemsOnPage = postsForThisPage, // Redundant? Posts prop already has this.
+                            CurrentPage = currentPage,
+                            TotalPages = totalPages,
+                            TotalItems = totalPosts,
+                            ItemsPerPage = postsPerPage,
+                            // Calculate Prev/Next URLs
+                            PreviousPageUrl = currentPage > 1 ? (currentPage == 2 ? $"{baseUrlPath}/" : $"{baseUrlPath}/page/{currentPage - 1}/") : null,
+                            NextPageUrl = currentPage < totalPages ? $"{baseUrlPath}/page/{currentPage + 1}/" : null,
+                            PageUrlTemplate = $"{baseUrlPath}/page/:num/", // For generating page number links
+                            FirstPageUrl = $"{baseUrlPath}/"
+                        }
+                    };
+                    newListPages.Add(listPage);
+                    totalPagesGenerated++;
+                } // End loop for current page
+            } // End loop for terms
+        } // End loop for taxonomy types
+        _logger.LogInformation("Generated {Count} taxonomy list pages (across all pages).", totalPagesGenerated);
+        
+        // --- Generate Blog Index Page(s) ---
         int blogIndexPagesGenerated = 0;
-        if (siteContext.Posts.Any()) // Only generate if there are posts
-        {
+        if (siteContext.Posts.Any()) {
             _logger.LogDebug("Generating blog index page(s)...");
-            // TODO: Implement Pagination Here for the main blog list later (#2)
-            // For now, just create the first page with all posts (or limited by config?)
+            List<PostData> allBlogPosts = siteContext.Posts; // Assumes already sorted by PerformPostProcessing
+            int postsPerPage = config.PostsPerPage <= 0 ? int.MaxValue : config.PostsPerPage;
+            int totalPosts = allBlogPosts.Count;
+            int totalPages = (int)Math.Ceiling((double)totalPosts / postsPerPage);
+            string blogIndexBasePath = "/blog"; // Base path for blog index
 
-            var postsForBlogIndex = siteContext.Posts; // Use all posts for now
-            string blogIndexUrl = "/blog/"; // Define the URL for the main blog index
-            string blogIndexDestPath = "blog/index.html"; // Relative output path
+            _logger.LogDebug("Generating {TotalPages} pages for Blog Index ({TotalPosts} posts)...", totalPages, totalPosts);
 
-            var blogIndexPage = new ListPageData {
-                ListType = "BlogIndex",
-                Term = "Main", // Conceptual term
-                TermSlug = "blog", // Conceptual slug
-                Posts = postsForBlogIndex, // Assign ALL posts for now
-                SiteContext = siteContext,
-                FrontMatter = new FrontMatter {
-                    Title = "Blog Archive", // Or get from config?
-                    Layout = SiteConstants.DefaultListLayout // Use the standard list layout
-                },
-                HtmlContent = string.Empty,
-                Url = blogIndexUrl,
-                DestinationPath = blogIndexDestPath,
-                SourcePath = "_generated/blog/index.md" // Conceptual path
-            };
+            for (int currentPage = 1; currentPage <= totalPages; currentPage++) {
+                cancellationToken.ThrowIfCancellationRequested();
+                var postsForThisPage = allBlogPosts
+                    .Skip((currentPage - 1) * postsPerPage)
+                    .Take(postsPerPage)
+                    .ToList();
 
-            siteContext.ListPages.Add(blogIndexPage);
-            blogIndexPagesGenerated++;
-            _logger.LogTrace("Generated main blog index page at URL {Url}", blogIndexPage.Url);
+                string pageUrl, pageDestinationPath;
+                if (currentPage == 1) {
+                    pageUrl = $"{blogIndexBasePath}/";
+                    pageDestinationPath = "blog/index.html";
+                }
+                else {
+                    pageUrl = $"{blogIndexBasePath}/page/{currentPage}/";
+                    pageDestinationPath = $"blog/page/{currentPage}/index.html";
+                }
 
+                var blogIndexPage = new ListPageData {
+                    ListType = "BlogIndex",
+                    Term = "Main",
+                    TermSlug = "blog", // Conceptual
+                    Posts = postsForThisPage,
+                    SiteContext = siteContext,
+                    FrontMatter = new FrontMatter {
+                        Title = "Blog Archive" + (totalPages > 1 ? $" (Page {currentPage})" : ""),
+                        Layout = SiteConstants.DefaultListLayout
+                    },
+                    HtmlContent = string.Empty,
+                    Url = pageUrl,
+                    DestinationPath = pageDestinationPath,
+                    SourcePath = $"_generated/blog/page{currentPage}.md", // Conceptual
+                    PagerInfo = new Pager<PostData> {
+                        ItemsOnPage = postsForThisPage,
+                        CurrentPage = currentPage,
+                        TotalPages = totalPages,
+                        TotalItems = totalPosts,
+                        ItemsPerPage = postsPerPage,
+                        PreviousPageUrl = currentPage > 1 ? (currentPage == 2 ? $"{blogIndexBasePath}/" : $"{blogIndexBasePath}/page/{currentPage - 1}/") : null,
+                        NextPageUrl = currentPage < totalPages ? $"{blogIndexBasePath}/page/{currentPage + 1}/" : null,
+                        PageUrlTemplate = $"{blogIndexBasePath}/page/:num/",
+                        FirstPageUrl = $"{blogIndexBasePath}/"
+                    }
+                };
+                newListPages.Add(blogIndexPage);
+                blogIndexPagesGenerated++;
+                totalPagesGenerated++;
+            } // End loop for current page
         }
-        else {
-            _logger.LogInformation("No posts found, skipping blog index page generation.");
+        else { /* log skip */
         }
+        _logger.LogInformation("Generated {Count} blog index pages.", blogIndexPagesGenerated);
 
-        _logger.LogInformation("Generated {Count} blog index page(s).", blogIndexPagesGenerated);
-        // Update total count
-        generatedCount += blogIndexPagesGenerated;
-        _logger.LogInformation("Total list pages generated: {Count}", generatedCount);
 
-        return Task.CompletedTask; // Generation is synchronous for now
+        // --- Add all generated pages to the main context ---
+        siteContext.ListPages.AddRange(newListPages);
+        _logger.LogInformation("Total list pages generated (including pagination): {Count}", totalPagesGenerated);
+
+        return Task.CompletedTask;
     }
 }
