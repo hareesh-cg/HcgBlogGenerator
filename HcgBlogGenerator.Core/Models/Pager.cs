@@ -6,7 +6,7 @@ namespace HcgBlogGenerator.Core.Models;
 /// Provides information needed to render pagination controls for lists of items (typically posts).
 /// </summary>
 /// <typeparam name="T">The type of item being paginated (e.g., PostData).</typeparam>
-public class Pager<T> where T : class // Renamed from PaginationInfo to Pager, common term
+public class Pager<T> where T : class
 {
     /// <summary>
     /// The items included on the current page.

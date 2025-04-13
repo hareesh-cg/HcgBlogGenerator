@@ -143,29 +143,18 @@ hcg-blog --version
 ## Usage (CLI Commands)
 
 -   **hcg-blog build [options]**: Builds the static site.
-    
     -   -s, --source <DIR>: Path to the source directory (default: current directory).
-        
     -   -o, --output <DIR>: Path to the output directory (default: _site relative to source).
-        
     -   -c, --config <FILE>: Path to the configuration file (default: config.json relative to source).
-        
     -   (Future)  --drafts: Build draft posts.
-        
     -   (Future)  --future: Build posts with future dates.
         
 -   **hcg-blog serve [options]**: Builds (implicitly, future: optionally watches) and serves the site locally.
-    
     -   -s, --source <DIR>: Path to the source directory (default: current directory). Used to find default output/config.
-        
     -   -o, --output <DIR>: Path to the directory to serve (default: _site relative to source). Build command output is served.
-        
     -   -p, --port <PORT>: Port number to use (default: 8080).
-        
     -   (Future)  --watch: Automatically rebuild site on file changes.
-        
     -   (Future)  --drafts: Build and serve draft posts.
-        
     -   (Future)  --future: Build and serve posts with future dates.
         
 -   **hcg-blog init <DIR> (Future)**: Creates a new site structure in the specified directory.
@@ -180,72 +169,46 @@ hcg-blog --version
 Key configuration options (see samples/sample-blog/config.json for a full example):
 
 -   baseUrl: Absolute base URL of the deployed site (e.g., "[https://www.example.com](https://www.google.com/url?sa=E&q=https%3A%2F%2Fwww.example.com)"). Crucial for feeds, sitemaps, canonical URLs.
-    
 -   title: The main title of the site.
-    
 -   description: A short description for the site (used in meta tags, feeds).
-    
 -   language: Site language code (e.g., "en-US").
-    
 -   postsPerPage: Number of posts on paginated listing pages (used by pagination feature - Future).
-    
 -   contentDirectory, templateDirectory, includesDirectory, staticDirectory, stylesDirectory: Paths to key source directories (relative to source root).
-    
 -   styleEntryPoint: Main SCSS/SASS file to compile (relative to stylesDirectory).
-    
 -   outputDirectory: Directory name for generated site output (relative to execution or specified output path).
-    
 -   postPermalink, pagePermalink: URL structure template (uses placeholders like :year, :month, :day, :slug).
-    
 -   buildDrafts, buildFutureDated: Booleans to control draft/future post visibility.
-    
 -   tagUrlBasePath, categoryUrlBasePath: Base URL paths for generated tag/category pages.
-    
 -   rss: Object with RSS feed settings (enabled, outputPath, maxItems).
-    
 -   extraData: A general-purpose object for custom site-wide data accessible in templates via config.ExtraData.
-    
+
 
 ## Templating (Scriban)
 
--   **Engine:** Uses Scriban. See [Scriban Language Documentation](https://www.google.com/url?sa=E&q=https%3A%2F%2Fgithub.com%2Fscriban%2Fscriban%2Fblob%2Fmaster%2Fdoc%2Flanguage.md).
-    
+-   **Engine:** Uses Scriban. See [Scriban Language Documentation](https://www.google.com/url?sa=E&q=https%3A%2F%2Fgithub.com%2Fscriban%2Fscriban%2Fblob%2Fmaster%2Fdoc%2Flanguage.md).    
 -   **Layouts:** Place in layouts/. Specify in front matter (layout: post.html) or rely on defaults. Use {{ layout = 'base.html' }} within a template to wrap it in another layout. The content of the inner template is typically available via {{ content }} in the outer layout.
-    
 -   **Includes:** Place in includes/. Use {{ include 'partial_name.html' }}. Includes are resolved relative to the includesDirectory.
-    
 -   **Data Access:**
-    
     -   **Current Item Properties:** Access properties of the current page/post model via {{ model }} (e.g., {{ model.Title }}, {{ model.HtmlContent }}, {{ model.Date }}, {{ model.ReadingTimeMinutes }}, {{ model.FrontMatter }}, {{ model.Seo }}).
-        
     -   **Configuration:** Access via {{ config }} (e.g., {{ config.BaseUrl }}, {{ config.Title }}, {{ config.ExtraData.MyCustomValue }}).
-        
     -   **Site Data:** Access site-wide lists and data via {{ site }} (e.g., {{ site.Posts }}, {{ site.Pages }}, {{ site.Taxonomies }}).
-        
     -   **Built-in Objects:** Use Scriban's built-ins (e.g., date.now, string.downcase, array.size).
-        
     -   **Custom Functions:**  {{ my_value | slugify }} is available.
         
 
 ## Plugins
 
 Plugins extend the build process. They are registered via DI and executed by the PluginManager.
-
 -   **ReadingTimePlugin:** Calculates ReadingTimeMinutes for posts. Runs at PostContentProcessing.
-    
 -   **SeoPlugin:** Generates Seo data object (Title, Description, OG, Twitter) for content items. Runs at PostContentProcessing.
-    
 -   **RobotsPlugin:** Generates robots.txt. Runs at PostBuild.
-    
 -   **SitemapPlugin:** Generates sitemap.xml. Runs at PostBuild.
-    
 -   **RssPlugin:** Generates feed.xml. Runs at PostBuild.
     
 
 ## Contributing
 
 Contributions are welcome! Please feel free to open an issue on GitHub to report bugs, suggest features, or ask questions.
-
 (Detailed contribution guidelines, including pull request process and coding standards, can be added later.)
 
 ## License
