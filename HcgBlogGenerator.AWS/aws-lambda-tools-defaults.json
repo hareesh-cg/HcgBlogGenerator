@@ -1,15 +1,18 @@
 {
-  "Information": [
-    "This file provides default values for the deployment wizard inside Visual Studio and the AWS Lambda commands added to the .NET Core CLI.",
-    "To learn more about the Lambda commands with the .NET Core CLI execute the following command at the command line in the project root directory.",
-    "dotnet lambda help",
-    "All the command line options for the Lambda command can be specified in this file."
-  ],
-  "profile": "",
-  "region": "",
-  "configuration": "Release",
-  "function-runtime": "dotnet8",
-  "function-memory-size": 512,
-  "function-timeout": 30,
-  "function-handler": "HcgBlogGenerator.AWS"
+    "Information": [
+        "This file provides default values for the deployment wizard inside Visual Studio and the AWS Lambda commands added to the .NET Core CLI.",
+        "To learn more about the Lambda commands with the .NET Core CLI execute the following command at the command line in the project root directory.",
+        "dotnet lambda help",
+        "All the command line options for the Lambda command can be specified in this file."
+    ],
+    "profile": "default", // Your AWS CLI profile name
+    "region": "us-east-1", // Your target AWS region
+    "configuration": "Release", // Build configuration (Release is typical for deployment)
+    "framework": "net8.0",
+    "function-runtime": "dotnet8",
+    "function-memory-size": 512, // Adjust based on need (start with 512MB or 1024MB)
+    "function-timeout": 120, // Adjust based on expected build time (in seconds, max 900)
+    "function-handler": "HcgBlogGenerator.Aws::HcgBlogGenerator.Aws.Function::FunctionHandler", // Assembly::Namespace.Class::Method
+    "function-role": "arn:aws:iam::915037378220:role/HcgBlogGeneratorAccess", // ARN copied from Step 1
+    "environment-variables": "Logging__LogLevel__Default=Debug" // Add other env vars here if needed (e.g., Logging__LogLevel__Default=Information)
 }

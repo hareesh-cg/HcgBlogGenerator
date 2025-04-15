@@ -21,59 +21,42 @@ namespace HcgBlogGenerator.Aws;
 
 public class Function {
     private static readonly IServiceProvider _serviceProvider;
-    private static readonly LambdaConfiguration _lambdaConfig;
     private static readonly ILogger<Function> _logger;
 
     // Static constructor runs once per cold start
     static Function() {
+        // Configuration can still load general settings (e.g., logging levels) from Env Vars
         var config = new ConfigurationBuilder()
-            .AddEnvironmentVariables() // Load environment variables
+            .AddEnvironmentVariables()
             .Build();
 
-        // Bind environment variables to our configuration class
-        _lambdaConfig = config.Get<LambdaConfiguration>() ?? new LambdaConfiguration();
-
         var serviceCollection = new ServiceCollection();
-        ConfigureServices(serviceCollection, config);
+        ConfigureServices(serviceCollection, config); // Pass general config
         _serviceProvider = serviceCollection.BuildServiceProvider();
 
         // Get logger after service provider is built
         _logger = _serviceProvider.GetRequiredService<ILogger<Function>>();
-
-        // Validate essential configuration
-        if (string.IsNullOrWhiteSpace(_lambdaConfig.SOURCE_BUCKET) || string.IsNullOrWhiteSpace(_lambdaConfig.OUTPUT_BUCKET)) {
-            _logger.LogCritical("Lambda is misconfigured. SOURCE_BUCKET and OUTPUT_BUCKET environment variables are required.");
-            // Subsequent invocations will fail until config is fixed.
-        }
-        else {
-            _logger.LogInformation("Lambda function initialized. Source: s3://{Bucket}/{Prefix}, Output: s3://{OutBucket}/{OutPrefix}",
-               _lambdaConfig.SOURCE_BUCKET, _lambdaConfig.SOURCE_PREFIX, _lambdaConfig.OUTPUT_BUCKET, _lambdaConfig.OUTPUT_PREFIX);
-        }
+        
+        _logger.LogInformation("Lambda function initialized.");
     }
 
     private static void ConfigureServices(IServiceCollection services, IConfiguration configuration) {
-        // --- Logging ---
         services.AddLogging(loggingBuilder => {
-            loggingBuilder.ClearProviders(); // Remove default providers if any added by runtime
+            loggingBuilder.ClearProviders();
             loggingBuilder.AddConfiguration(configuration.GetSection("Logging"));
-            // Use LambdaLoggerProvider (provided by Amazon.Lambda.Logging.AspNetCore in web apps, but here we use basic console/core logging)
             // The Lambda runtime captures Console.WriteLine, so standard Console logger works.
-            loggingBuilder.AddConsole(options => options.LogToStandardErrorThreshold = Microsoft.Extensions.Logging.LogLevel.Debug); // Log Info+ to stderr for CloudWatch
+            loggingBuilder.AddConsole().SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace);
         });
 
-        // Register configuration object if needed by other services
+        // Register configuration if needed elsewhere
         services.AddSingleton(configuration);
-        services.AddSingleton(_lambdaConfig); // Register specific Lambda config
 
         // --- AWS Clients ---
         // The Lambda execution role should provide credentials
         services.AddAWSService<IAmazonS3>(); // Registers default S3 client
 
         // --- HcgBlogGenerator Core Services ---
-        // Placeholder paths - actual paths are determined at runtime by the handler
         services.AddHcgBlogGeneratorCore();
-
-        // No need to register AwsS3FileSystem itself here, as we create instances dynamically
     }
 
     /// <summary>
@@ -89,26 +72,63 @@ public class Function {
         // Log correlation IDs if available
         _logger.LogDebug("Lambda Request ID: {AwsRequestId}, API Gateway Request ID: {ApiRequestId}", context.AwsRequestId, apiProxyRequest.RequestContext?.RequestId);
 
-                // --- Configuration Validation (Runtime) ---
-        // Re-check critical config on each invocation in case environment changed (unlikely but possible)
-        if (string.IsNullOrWhiteSpace(_lambdaConfig.SOURCE_BUCKET) || string.IsNullOrWhiteSpace(_lambdaConfig.OUTPUT_BUCKET)) {
-            _logger.LogError("Lambda function is missing required environment variable configuration (SOURCE_BUCKET or OUTPUT_BUCKET).");
-            return CreateErrorResponse(HttpStatusCode.InternalServerError, "Lambda function misconfigured.");
+        // --- Method Validation ---
+        if (!apiProxyRequest.RequestContext?.Http?.Method.Equals("POST", StringComparison.OrdinalIgnoreCase) ?? true) {
+            _logger.LogWarning("Received non-POST request ({Method}). Rejecting.", apiProxyRequest.RequestContext?.Http?.Method ?? "UNKNOWN");
+            return CreateErrorResponse(HttpStatusCode.MethodNotAllowed, "Only POST requests are allowed.");
         }
-
-        // Determine source/output details (could potentially be overridden by request payload if designed that way)
-        string sourceBucket = _lambdaConfig.SOURCE_BUCKET;
-        string sourcePrefix = _lambdaConfig.SOURCE_PREFIX ?? ""; // Default to root if not set
-        string outputBucket = _lambdaConfig.OUTPUT_BUCKET;
-        string outputPrefix = _lambdaConfig.OUTPUT_PREFIX ?? ""; // Default to root if not set
-        string configFileKey = Path.Combine(sourcePrefix, _lambdaConfig.CONFIG_FILE_KEY ?? SiteConstants.DefaultConfigFileName)
-                                   .Replace('\\', '/'); // S3 key for config
-
 
         // Simple security check (e.g., require a specific path or header?) - Optional
         // if (apiProxyRequest.RequestContext?.Http?.Path != "/build") {
         //     return CreateErrorResponse(HttpStatusCode.NotFound, "Not Found");
         // }
+
+        // --- Deserialize Request Body ---
+        BuildRequest? buildRequest = null;
+        if (string.IsNullOrWhiteSpace(apiProxyRequest.Body)) {
+            _logger.LogError("Request body is missing or empty.");
+            return CreateErrorResponse(HttpStatusCode.BadRequest, "Request body is required.");
+        }
+        try {
+            // Handle base64 encoding if API Gateway is configured that way (common for binary/non-JSON)
+            // Assuming standard JSON payload here. Adjust if using base64.
+            string requestBody = apiProxyRequest.IsBase64Encoded
+                ? System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(apiProxyRequest.Body))
+                : apiProxyRequest.Body;
+
+            buildRequest = JsonSerializer.Deserialize<BuildRequest>(requestBody,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); // Allow camelCase/PascalCase variations
+
+            if (buildRequest == null)
+                throw new JsonException("Deserialized request is null.");
+        }
+        catch (JsonException jsonEx) {
+            _logger.LogError(jsonEx, "Failed to deserialize request body JSON.");
+            return CreateErrorResponse(HttpStatusCode.BadRequest, $"Invalid JSON request body: {jsonEx.Message}");
+        }
+        catch (FormatException formatEx) // Catch potential Base64 decoding errors
+        {
+            _logger.LogError(formatEx, "Failed to decode base64 request body.");
+            return CreateErrorResponse(HttpStatusCode.BadRequest, "Invalid base64 request body.");
+        }
+        catch (Exception ex) {
+            _logger.LogError(ex, "Error processing request body.");
+            return CreateErrorResponse(HttpStatusCode.BadRequest, "Could not process request body.");
+        }
+
+        // --- Parameter Validation (from Request Body) ---
+        if (string.IsNullOrWhiteSpace(buildRequest.SourceBucket) || string.IsNullOrWhiteSpace(buildRequest.OutputBucket)) {
+            _logger.LogError("Request body is missing required fields 'source_bucket' or 'output_bucket'.");
+            return CreateErrorResponse(HttpStatusCode.BadRequest, "Request body must include 'source_bucket' and 'output_bucket'.");
+        }
+
+        // --- Use Parameters from Request ---
+        string sourceBucket = buildRequest.SourceBucket;
+        string sourcePrefix = buildRequest.SourcePrefix ?? ""; // Default to root if not set
+        string outputBucket = buildRequest.OutputBucket;
+        string outputPrefix = buildRequest.OutputPrefix ?? ""; // Default to root if not set
+        string configFileKey = Path.Combine(sourcePrefix, buildRequest.ConfigFileKey ?? SiteConstants.DefaultConfigFileName)
+                                    .Replace('\\', '/'); // S3 key for config
 
         var cancellationTokenSource = new CancellationTokenSource(); // Potential timeout later?
 
@@ -122,13 +142,14 @@ public class Function {
             // --- Get SiteBuilder service ---
             var siteBuilder = _serviceProvider.GetRequiredService<ISiteBuilder>();
 
-            _logger.LogInformation("Initiating site build...");
+            _logger.LogInformation("Initiating site build from request. Source: s3://{Bucket}/{Prefix}, Output: s3://{OutBucket}/{OutPrefix}, Config: {Config}",
+                  sourceBucket, sourcePrefix, outputBucket, outputPrefix, configFileKey);
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
             // --- Execute Build ---
             // Use the configFileKey relative to the source FS root (which is empty for AwsS3FileSystem constructor)
             // The AwsS3FileSystem prepends the bucket prefix internally.
-            string configPathInSourceFs = configFileKey.StartsWith(sourcePrefix)
+            string configPathInSourceFs = configFileKey.StartsWith(sourcePrefix) && !string.IsNullOrEmpty(sourcePrefix)
                 ? configFileKey.Substring(sourcePrefix.Length)
                 : configFileKey; // Path relative to source prefix
 
@@ -139,7 +160,7 @@ public class Function {
 
             return new APIGatewayHttpApiV2ProxyResponse {
                 StatusCode = (int)HttpStatusCode.OK,
-                Body = JsonSerializer.Serialize(new { message = "Site build triggered and completed successfully." }),
+                Body = JsonSerializer.Serialize(new { version = "0.1.5", message = "Site build triggered and completed successfully." }),
                 Headers = new Dictionary<string, string> { { "Content-Type", "application/json" } }
             };
         }

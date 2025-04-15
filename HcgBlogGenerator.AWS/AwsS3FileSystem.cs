@@ -216,7 +216,10 @@ public class AwsS3FileSystem : IFileSystem {
         try {
             ListObjectsV2Response response;
             do {
+                _logger.LogDebug("Calling ListObjectsV2Async. Bucket: '{Bucket}', Prefix: '{Prefix}', Delimiter: '{Delimiter}', Token: '{Token}'",
+                    request.BucketName, request.Prefix, request.Delimiter, request.ContinuationToken);
                 response = await _s3Client.ListObjectsV2Async(request, cancellationToken);
+                _logger.LogTrace("ListObjectsV2Async returned {Count} objects in this page. IsTruncated: {Truncated}", response.S3Objects.Count, response.IsTruncated);
 
                 foreach (S3Object obj in response.S3Objects) {
                     // Make path relative to the root prefix
@@ -224,16 +227,24 @@ public class AwsS3FileSystem : IFileSystem {
                         ? obj.Key.Substring(_rootPrefix.Length)
                         : obj.Key; // Should not happen if prefix logic is correct
 
+                    _logger.LogTrace("S3Object {Key} got converted to {relativePath} with root as {rootPrefix}", obj.Key, relativePath, _rootPrefix);
+
                     // Exclude objects that represent folders themselves (ending in '/')
                     // Also apply client-side filtering
-                    if (!string.IsNullOrEmpty(relativePath) && !relativePath.EndsWith('/') && filter(obj.Key)) {
+                    if (!string.IsNullOrEmpty(relativePath) && !relativePath.EndsWith('/')) {
+                        _logger.LogTrace("Adding path to results: {Path}", relativePath);
                         results.Add(relativePath);
+                    }
+                    else {
+                        _logger.LogTrace("Skipping path: {Path} (IsNullOrEmpty={IsNull}, EndsWithSlash={EndsSlash})",
+                            relativePath, string.IsNullOrEmpty(relativePath), relativePath?.EndsWith('/') ?? false); // Log why skipped
                     }
                 }
                 request.ContinuationToken = response.NextContinuationToken;
 
             } while (response.IsTruncated);
 
+            _logger.LogDebug("Finished listing for prefix '{Prefix}'. Total results found matching filter: {Count}", request.Prefix, results.Count);
             return results;
         }
         catch (Exception ex) {

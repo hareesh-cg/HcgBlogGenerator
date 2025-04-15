@@ -1,3 +1,6 @@
+using System.Collections.Concurrent; // For thread-safe dictionary
+using System.Reflection;
+
 using HcgBlogGenerator.Core.Abstractions;
 using HcgBlogGenerator.Core.Models; // If needed for specific context data
 using HcgBlogGenerator.Core.Utilities;
@@ -8,14 +11,6 @@ using Scriban;
 using Scriban.Parsing; // Required for IScriptObject, ITemplateLoader
 using Scriban.Runtime; // Required for ScriptObject, TemplateLoader
 using Scriban.Syntax;
-
-using System;
-using System.Collections.Concurrent; // For thread-safe dictionary
-using System.Collections.Generic;
-using System.IO; // For Path operations
-using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace HcgBlogGenerator.Core.Services;
 
@@ -43,8 +38,8 @@ public class ScribanTemplateEngine : ITemplateEngine {
     /// <param name="fileSystem">The filesystem instance (scoped to the site source) used to read templates.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     public async Task InitializeAsync(SiteConfiguration configuration, IFileSystem fileSystem, CancellationToken cancellationToken = default) {
-        _templateRootPath = configuration.TemplateDirectory;
-        _includesRootPath = configuration.IncludesDirectory;
+        _templateRootPath = configuration.TemplateDirectory.Trim('/');
+        _includesRootPath = configuration.IncludesDirectory.Trim('/');
 
         _logger.LogInformation("Initializing Scriban template engine. Loading templates from: {TemplateDirectory}", _templateRootPath);
         _cachedTemplates.Clear(); // Clear cache on re-initialization
@@ -52,56 +47,127 @@ public class ScribanTemplateEngine : ITemplateEngine {
         // Store the filesystem and root path for the custom loader
         // We assume the passed fileSystem operates relative to the site root,
         // so templateDirectory is a sub-path within that.
-        _templateFileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));        
+        _templateFileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
 
+        var loadedTemplates = new Dictionary<string, Template>(); // Use temp dictionary to avoid concurrency issues during load
+        int errorCount = 0;
+
+        // --- Load Layouts ---
+        _logger.LogDebug("Loading layout templates from: {Path}", _templateRootPath);
+        await LoadTemplatesFromDirectoryAsync(_templateRootPath, _templateRootPath, fileSystem, loadedTemplates, cancellationToken)
+              .ContinueWith(t => errorCount += t.Result, TaskContinuationOptions.OnlyOnRanToCompletion); // Count errors
+
+        // --- Load Includes ---
+        _logger.LogDebug("Loading include templates from: {Path}", _includesRootPath);
+        await LoadTemplatesFromDirectoryAsync(_includesRootPath, _includesRootPath, fileSystem, loadedTemplates, cancellationToken)
+              .ContinueWith(t => errorCount += t.Result, TaskContinuationOptions.OnlyOnRanToCompletion); // Count errors
+
+
+        // --- Populate Concurrent Cache ---
+        foreach (var kvp in loadedTemplates) {
+            _cachedTemplates.TryAdd(kvp.Key, kvp.Value);
+        }
+
+        _logger.LogInformation("Template initialization complete. Loaded {LoadedCount} templates/includes, encountered {ErrorCount} errors.", _cachedTemplates.Count, errorCount);
+
+        if (_cachedTemplates.Any()) {
+            _logger.LogTrace("Final template cache keys: [{FinalKeys}]", string.Join(", ", _cachedTemplates.Keys));
+        }
+        else {
+            _logger.LogWarning("Template cache is EMPTY after initialization.");
+        }
+    }
+
+    private async Task<int> LoadTemplatesFromDirectoryAsync(
+            string directoryPath,       // The directory to search (relative to source root)
+            string basePathForKey,      // The base path to make keys relative to (e.g., "layouts" or "includes")
+            IFileSystem fileSystem,
+            Dictionary<string, Template> targetDictionary, // Temporary dictionary
+            CancellationToken cancellationToken) {
+        _logger.LogInformation("Attempting to load templates from directory path: '{DirectoryPath}'", directoryPath);
+        int errors = 0;
+        List<string> templateFiles;
         try {
-            // Find all potential template files (e.g., .html, .scriban) recursively
-            // Adjust search patterns as needed
-            var templateFiles = (await _templateFileSystem.GetFilesAsync(_templateRootPath, "*.*", true, cancellationToken)); //.ToList();            
+            // Find .html or .scriban files recursively within the specific directory
+            var templateFilesList = (await fileSystem.GetFilesAsync(directoryPath, "*.*", true, cancellationToken)).ToList();
+            _logger.LogDebug("GetFilesAsync('{Dir}', '*.*', true) returned {Count} raw paths.", directoryPath, templateFilesList.Count);
+            foreach (var f in templateFilesList) {
+                _logger.LogTrace("- Raw path found: {FilePath}", f);
+            } // Log each raw path
 
-            int loadedCount = 0;
-            int errorCount = 0;
-
-            foreach (var relativePath in templateFiles.Where(f => f.EndsWith(".html", StringComparison.OrdinalIgnoreCase))) {
-                cancellationToken.ThrowIfCancellationRequested();
-                // The key should be relative to the templateDirectory itself, not the site root
-                string templateKey = Path.GetRelativePath(_templateRootPath, relativePath).Replace(Path.DirectorySeparatorChar, '/'); ;
-
-                try {
-                    _logger.LogDebug("Loading template: {TemplatePath}", relativePath);
-                    string templateContent = await _templateFileSystem.ReadAllTextAsync(relativePath, cancellationToken);
-
-                    // Parse the template. Parsing catches syntax errors early.
-                    var template = Template.Parse(templateContent, relativePath); // Use path for better error messages
-                    if (template.HasErrors) {
-                        errorCount++;
-                        LogTemplateErrors(template.Messages, relativePath);
-                        // skip caching errored templates, or cache them to prevent re-parsing
-                    }
-                    else {
-                        // Try adding to cache only if parse was OK
-                        if (!_cachedTemplates.TryAdd(templateKey, template)) {
-                            _logger.LogWarning("Could not add template {TemplateKey} to cache (already exists?). Path: {TemplatePath}", templateKey, relativePath);
-                        }
-                        else {
-                            loadedCount++;
-                            _logger.LogTrace("Successfully parsed and cached template: {TemplateKey}", templateKey);
-                        }
-                    }
-                }
-                catch (Exception ex) {
-                    errorCount++;
-                    _logger.LogError(ex, "Failed to load or parse template file: {TemplatePath}", relativePath);                    
-                }
-            }
-
-            _logger.LogInformation("Template initialization complete. Loaded {LoadedCount} templates, encountered {ErrorCount} errors.", loadedCount, errorCount);
+            templateFiles = templateFilesList.Where(f =>
+                f.EndsWith(".html", StringComparison.OrdinalIgnoreCase) ||
+                f.EndsWith(".scriban", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            _logger.LogDebug("Filtered down to {Count} .html/.scriban files in '{Dir}'.", templateFiles.Count, directoryPath);
+            foreach (var f in templateFiles) {
+                _logger.LogTrace("- Filtered path: {FilePath}", f);
+            } 
+        }
+        catch (DirectoryNotFoundException) {
+            _logger.LogWarning("Template directory not found: {Dir}. Skipping load.", directoryPath);
+            return 0; // Not an error, just no templates
         }
         catch (Exception ex) {
-            _logger.LogError(ex, "Failed during template initialization process for directory: {TemplateDirectory}", _templateRootPath);
-            // Re-throw or handle as appropriate for application lifecycle
-            throw;
+            _logger.LogError(ex, "Error discovering template files in {Dir}", directoryPath);
+            return 1; // Indicate an error occurred during discovery
         }
+
+
+        foreach (var filePath in templateFiles) // filePath is relative to source root (e.g., layouts/post.html)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // --- Calculate Cache Key ---
+            // Key should be relative to the conceptual root for that type (layout or include)
+            // E.g., "post.html" or "header.html" or "partials/nav.html"
+            // We need Path.GetRelativePath functionality here.
+
+            // Assume filePath and basePathForKey are structured like "folder/file.html" or "folder/"
+            string templateKey = filePath;
+            string basePrefix = basePathForKey.TrimEnd('/') + "/";
+            if (filePath.StartsWith(basePrefix, StringComparison.OrdinalIgnoreCase)) {
+                templateKey = filePath.Substring(basePrefix.Length);
+            }
+            else {
+                // This case shouldn't happen if GetFilesAsync works correctly with the prefix, but log if it does
+                _logger.LogWarning("Template file '{FilePath}' found outside its expected base path '{BasePath}'. Using full path as key might cause issues.", filePath, basePathForKey);
+                // Use filename only as fallback?
+                templateKey = Path.GetFileName(filePath);
+            }
+
+            // Normalize key
+            templateKey = templateKey.Replace('\\', '/');
+            _logger.LogTrace("Calculated cache key: '{TemplateKey}' for file: {FilePath}", templateKey, filePath); // Log calculated key
+
+            try {
+                _logger.LogTrace("Loading template file: {FilePath} with cache key: {TemplateKey}", filePath, templateKey);
+                string templateContent = await fileSystem.ReadAllTextAsync(filePath, cancellationToken);
+
+                _logger.LogTrace("Parsing template file content: {FilePath}", filePath);
+                var template = Template.Parse(templateContent, filePath); // Use full path for errors
+
+                if (template.HasErrors) {
+                    errors++;
+                    LogTemplateErrors(template.Messages, filePath);
+                    _logger.LogError("Failed to parse template: {TemplateKey}", templateKey);
+                    continue;
+                }
+
+                if (!targetDictionary.TryAdd(templateKey, template)) {
+                    _logger.LogWarning("Duplicate template key detected: {TemplateKey} from file {FilePath}. Check directory structure.", templateKey, filePath);
+                    // errors++; // Treat duplicates as errors? Or just warn? Warn for now.
+                }
+                else {
+                    _logger.LogDebug("Successfully loaded and added template with key: {TemplateKey}", templateKey); // Log success
+                }
+            }
+            catch (Exception ex) {
+                errors++;
+                _logger.LogError(ex, "Failed to load or parse template file: {FilePath}", filePath);
+            }
+        }
+        return errors;
     }
 
     /// <summary>
@@ -127,9 +193,9 @@ public class ScribanTemplateEngine : ITemplateEngine {
         }
 
         if (!_cachedTemplates.TryGetValue(templateKey, out var template)) {
-            _logger.LogError("Template not found in cache: {TemplateKey}. Ensure it was loaded during initialization.", templateKey);
+            _logger.LogError("Template not found in cache using key: {TemplateKey}. Available keys: [{AvailableKeys}]", templateKey, string.Join(", ", _cachedTemplates.Keys));
             // Consider fallback or throwing a more specific exception
-            throw new FileNotFoundException($"Template '{templateKey}' not found or failed to load.", templateKey);
+            throw new FileNotFoundException($"Template '{templateKey}' not found in cache.", templateKey);
         }
 
         try {
