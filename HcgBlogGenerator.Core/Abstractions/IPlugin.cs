@@ -1,8 +1,5 @@
 using HcgBlogGenerator.Core.Models;
 
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace HcgBlogGenerator.Core.Abstractions;
 
 /// <summary>

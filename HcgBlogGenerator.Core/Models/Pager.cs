@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace HcgBlogGenerator.Core.Models;
 
 /// <summary>

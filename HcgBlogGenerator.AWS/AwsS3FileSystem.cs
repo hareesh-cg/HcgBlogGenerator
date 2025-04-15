@@ -1,3 +1,6 @@
+using System.Net; // For HttpStatusCode
+using System.Text;
+
 using Amazon.S3;
 using Amazon.S3.Model;
 using Amazon.S3.Transfer; // Required for TransferUtility
@@ -6,15 +9,6 @@ using Amazon.S3.Util; // Required for AmazonS3Util
 using HcgBlogGenerator.Core.Abstractions;
 
 using Microsoft.Extensions.Logging;
-
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net; // For HttpStatusCode
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace HcgBlogGenerator.Aws;
 

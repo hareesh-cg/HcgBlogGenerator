@@ -1,18 +1,11 @@
+using System.Text;
+using System.Xml;
+using System.Xml.Linq;
+
 using HcgBlogGenerator.Core.Abstractions;
 using HcgBlogGenerator.Core.Models;
 
 using Microsoft.Extensions.Logging;
-
-using System;
-using System.Collections.Generic;
-using System.Globalization; // For CultureInfo.InvariantCulture
-using System.IO; // For MemoryStream
-using System.Linq;
-using System.Text; // For Encoding
-using System.Threading;
-using System.Threading.Tasks;
-using System.Xml; // For XmlWriter, XmlWriterSettings
-using System.Xml.Linq; // Core namespace for manual XML generation
 
 namespace HcgBlogGenerator.Core.Plugins {
     /// <summary>

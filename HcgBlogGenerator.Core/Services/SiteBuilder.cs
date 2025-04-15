@@ -1,5 +1,5 @@
-using System.Text.Json; // Required for JSON deserialization
-using System.Text.RegularExpressions; // Required for slug generation
+using System.Text.Json;
+using System.Text.RegularExpressions;
 
 using HcgBlogGenerator.Core.Abstractions;
 using HcgBlogGenerator.Core.Models;

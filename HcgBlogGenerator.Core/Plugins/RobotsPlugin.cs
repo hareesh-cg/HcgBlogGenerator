@@ -1,12 +1,9 @@
+using System.Text;
+
 using HcgBlogGenerator.Core.Abstractions;
 using HcgBlogGenerator.Core.Models;
 
 using Microsoft.Extensions.Logging;
-
-using System;
-using System.Text; // For StringBuilder
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace HcgBlogGenerator.Core.Plugins;
 

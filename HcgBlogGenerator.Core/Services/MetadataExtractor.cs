@@ -1,10 +1,9 @@
+using System.Text.RegularExpressions;
+using System.Web;
+
 using HcgBlogGenerator.Core.Abstractions;
 
 using Microsoft.Extensions.Logging;
-
-using System;
-using System.Text.RegularExpressions;
-using System.Web; // For HtmlDecode
 
 namespace HcgBlogGenerator.Core.Services;
 

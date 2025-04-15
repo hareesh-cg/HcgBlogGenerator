@@ -1,14 +1,10 @@
+using System.Net; // For WebUtility.HtmlDecode
+using System.Text.RegularExpressions;
+
 using HcgBlogGenerator.Core.Abstractions;
 using HcgBlogGenerator.Core.Models;
 
 using Microsoft.Extensions.Logging;
-
-using System;
-using System.Linq;
-using System.Net; // For WebUtility.HtmlDecode
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace HcgBlogGenerator.Core.Plugins;
 

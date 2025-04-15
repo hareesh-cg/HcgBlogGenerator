@@ -1,18 +1,16 @@
-using Amazon.Lambda.Core;
+using System.Net; // For HttpStatusCode
+using System.Text.Json;
+
 using Amazon.Lambda.APIGatewayEvents; // For HTTP API events
+using Amazon.Lambda.Core;
 using Amazon.S3;
+
 using HcgBlogGenerator.Core.Abstractions;
 using HcgBlogGenerator.Core.Utilities; // For AddHcgBlogGeneratorCore, SiteConstants
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.IO; // For Path
-using System.Net; // For HttpStatusCode
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]

@@ -1,5 +1,3 @@
-using HcgBlogGenerator.Core.Models;
-
 namespace HcgBlogGenerator.Core.Abstractions;
 
 /// <summary>

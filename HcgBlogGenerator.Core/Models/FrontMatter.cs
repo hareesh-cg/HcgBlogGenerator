@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Text.Json.Serialization; // Keep for JsonExtensionData if using System.Text.Json for config/frontmatter parsing later
 
 namespace HcgBlogGenerator.Core.Models;

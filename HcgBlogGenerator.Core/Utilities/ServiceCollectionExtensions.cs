@@ -5,9 +5,6 @@ using HcgBlogGenerator.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-using System;
-using System.IO;
-
 namespace HcgBlogGenerator.Core.Utilities;
 
 public static class ServiceCollectionExtensions {

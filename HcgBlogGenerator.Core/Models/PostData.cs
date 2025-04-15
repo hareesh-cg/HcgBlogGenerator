@@ -1,5 +1,3 @@
-using System;
-
 namespace HcgBlogGenerator.Core.Models;
 
 /// <summary>

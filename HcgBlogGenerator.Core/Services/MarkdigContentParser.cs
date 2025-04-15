@@ -7,13 +7,7 @@ using Markdig.Syntax;
 
 using Microsoft.Extensions.Logging;
 
-using System;
-using System.IO; // Required for StringWriter
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-
-using YamlDotNet.Core; // Required for YamlException
+using YamlDotNet.Core;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
