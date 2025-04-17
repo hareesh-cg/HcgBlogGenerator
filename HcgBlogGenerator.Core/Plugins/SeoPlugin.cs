@@ -91,7 +91,7 @@ public class SeoPlugin : IPlugin {
                                         ?? config.Description
                                         ?? string.Empty;
 
-                seo.MetaDescription = TruncateText(CleanText(baseDescription), MaxMetaDescriptionLength);
+                seo.Description = TruncateText(CleanText(baseDescription), MaxMetaDescriptionLength);
                 seo.OgDescription = TruncateText(CleanText(item.FrontMatter.Get<string>("ogDescription") ?? baseDescription), MaxOgDescriptionLength);
                 seo.TwitterDescription = TruncateText(CleanText(item.FrontMatter.Get<string>("twitterDescription") ?? baseDescription), MaxTwitterDescriptionLength);
 

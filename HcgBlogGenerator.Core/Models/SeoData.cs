@@ -12,12 +12,17 @@ public class SeoData {
     /// <summary>
     /// The content for the <meta name="description"> tag.
     /// </summary>
-    public string? MetaDescription { get; set; }
+    public string? Description { get; set; }
 
     /// <summary>
     /// The absolute canonical URL for the page/post.
     /// </summary>
     public string? CanonicalUrl { get; set; }
+
+    /// <summary>
+    /// The Keywords for the page/post.
+    /// </summary>
+    public string? Keywords { get; set; }
 
     // --- Open Graph ---
     /// <summary>
@@ -73,7 +78,7 @@ public class SeoData {
     /// <summary>
     /// Optional: Article tags.
     /// </summary>
-    public List<string>? ArticleTags { get; set; }
+    public string? ArticleTags { get; set; }
 
 
     // --- Twitter Card ---
@@ -107,4 +112,9 @@ public class SeoData {
     /// </summary>
     public string? TwitterImage { get; set; }
 
+    /// <summary>
+    /// Specific directive for the robots meta tag (e.g., "noindex, nofollow").
+    /// Null or empty if no specific directive is needed.
+    /// </summary>
+    public string? RobotsDirective { get; set; }
 }
