@@ -97,6 +97,10 @@ public class SitemapPlugin : IPlugin {
             .Concat(siteContext.Pages.Cast<ContentItem>()); // Concatenate with PageData
 
         foreach (var item in allContent) {
+            if (item.FrontMatter.Draft) {
+                _logger.LogTrace("Skipping draft item {SourcePath} from sitemap.", item.SourcePath);
+                continue;
+            }
             // Skip if URL is missing or invalid (shouldn't happen with proper processing)
             if (string.IsNullOrWhiteSpace(item.Url)) continue;
 

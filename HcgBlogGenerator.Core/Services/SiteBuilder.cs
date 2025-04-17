@@ -295,27 +295,87 @@ public class SiteBuilder : ISiteBuilder {
     }
 
     private string CalculateDestinationPath(ContentItem item, SiteConfiguration config) {
-        // Logic to determine the output file path (e.g., _site/blog/2024/my-post/index.html)
-        // Uses permalink structure defined in config.
-        string urlPath = item.Url; // Use the already calculated URL
+        // Check if it's a draft being built
+        bool isDraftBuilt = item.FrontMatter.Draft && config.BuildDrafts;
 
-        // Convert URL path to file path
-        string filePath;
-        if (urlPath == "/") {
-            // Root URL maps directly to index.html at the output root
-            filePath = "index.html";
+        string relativeOutputPath;
+
+        if (isDraftBuilt) {
+            // --- DRAFT PATH LOGIC ---
+            _logger.LogDebug("Calculating DRAFT destination path for {SourcePath}", item.SourcePath);
+            // Strategy: Mirror source path structure relative to content root, place under 'drafts' output folder.
+
+            // 1. Get path relative to content directory
+            string pathRelativeToContent = item.SourcePath;
+            string contentDirPrefix = config.ContentDirectory.TrimEnd('/') + "/"; // Ensure trailing slash for prefix check
+            if (pathRelativeToContent.StartsWith(contentDirPrefix, StringComparison.OrdinalIgnoreCase)) {
+                pathRelativeToContent = pathRelativeToContent.Substring(contentDirPrefix.Length);
+            }
+            // Example: "posts/subdir/draft-post.md" or "pages/draft-page.md" or "index.md"
+
+            // 2. Determine output directory structure based on relative source path
+            string dirName = Path.GetDirectoryName(pathRelativeToContent)?.Replace('\\', '/') ?? string.Empty;
+            string fileNameWithoutExt = Path.GetFileNameWithoutExtension(item.SourcePath);
+
+            // 3. Construct path: Use directory structure, use slug for filename unless original was index.md
+            string finalDirPart;
+            if (fileNameWithoutExt.Equals("index", StringComparison.OrdinalIgnoreCase)) {
+                // If the source was index.md, output an index.html in the corresponding directory
+                finalDirPart = dirName; // Output to the directory itself (e.g., posts/subdir/index.html relative part)
+            }
+            else {
+                // Use slug for non-index files
+                string slug = item.FrontMatter.Slug?.Trim();
+                if (string.IsNullOrWhiteSpace(slug)) {
+                    // Use Title or filename as fallback for slug basis
+                    string baseName = !string.IsNullOrWhiteSpace(item.FrontMatter.Title)
+                      ? item.FrontMatter.Title
+                      : fileNameWithoutExt; // Use filename if no title/slug
+                    slug = StringUtils.Slugify(baseName);
+                }
+                else {
+                    slug = StringUtils.Slugify(slug); // Ensure provided slug is clean
+                }
+                // Combine directory and slug
+                finalDirPart = string.IsNullOrEmpty(dirName) ? slug : $"{dirName}/{slug}";
+            }
+
+            // Ensure output path ends with /index.html for directory-based output
+            relativeOutputPath = $"{finalDirPart}/index.html";
+            // Clean potential double slashes (e.g., if finalDirPart was empty)
+            relativeOutputPath = relativeOutputPath.Replace("//", "/").TrimStart('/');
+
+            _logger.LogTrace("Draft destination path: {Path}", relativeOutputPath);
         }
         else {
-            // Ensure it ends with a slash for 'pretty URLs' (index.html)
-            if (!urlPath.EndsWith("/")) {
-                urlPath += "/";
+            // --- REGULAR PATH LOGIC (Unchanged) ---
+            _logger.LogDebug("Calculating regular destination path for {SourcePath}", item.SourcePath);
+            // Original logic: Convert URL path to file path
+            string urlPath = item.Url; // Use the already calculated URL
+
+            if (string.IsNullOrWhiteSpace(urlPath)) {
+                // Fallback if URL is somehow empty - prevent crashing
+                _logger.LogWarning("URL for item {SourcePath} was empty. Using fallback destination.", item.SourcePath);
+                relativeOutputPath = $"undetermined/{StringUtils.Slugify(Path.GetFileNameWithoutExtension(item.SourcePath))}/index.html";
             }
-            // Standard case: /some/path/ -> some/path/index.html
-            filePath = urlPath.TrimStart('/') + "index.html";
+            else if (urlPath == "/") {
+                relativeOutputPath = "index.html";
+            }
+            else {
+                // Ensure it ends with a slash for 'pretty URLs' (index.html)
+                if (!urlPath.EndsWith("/")) {
+                    urlPath += "/";
+                }
+                // Standard case: /some/path/ -> some/path/index.html
+                relativeOutputPath = urlPath.TrimStart('/') + "index.html";
+            }
         }
 
-        _logger.LogTrace("Calculated destination path for {SourcePath} -> {DestinationPath}", item.SourcePath, filePath);
-        return filePath;
+        // Clean path one last time
+        relativeOutputPath = relativeOutputPath.Replace("//", "/");
+
+        _logger.LogTrace("Final destination path for {SourcePath} -> {DestinationPath}", item.SourcePath, relativeOutputPath);
+        return relativeOutputPath;
     }
 
     private string CalculateUrl(ContentItem item, SiteConfiguration config) {
@@ -543,46 +603,91 @@ public class SiteBuilder : ISiteBuilder {
 
     private async Task CompileAndWriteCssAsync(SiteConfiguration config, IFileSystem sourceFileSystem, IFileSystem outputFileSystem, CancellationToken cancellationToken) {
         string stylesDir = config.StylesDirectory;
-        string entryPointFile = config.StyleEntryPoint;
-        string sourcePath = sourceFileSystem.CombinePath(stylesDir, entryPointFile); // Use CombinePath
 
-        if (!await sourceFileSystem.FileExistsAsync(sourcePath, cancellationToken)) {
-            _logger.LogWarning("SCSS entry point not found: {SourcePath}. Skipping CSS compilation.", sourcePath);
+        if (!await sourceFileSystem.DirectoryExistsAsync(stylesDir, cancellationToken)) {
+            _logger.LogDebug("Styles directory not found: {StylesDir}. Skipping CSS compilation.", stylesDir);
             return;
         }
 
-        _logger.LogDebug("Compiling CSS from entry point: {SourcePath}", sourcePath);
+        _logger.LogInformation("--- Build Step 11: Compile SCSS Files --- from: {StylesDirectory}", stylesDir);
+        IEnumerable<string> scssFilesToCompile;
+
         try {
-            string scssContent = await sourceFileSystem.ReadAllTextAsync(sourcePath, cancellationToken);
+            // Find all .scss files recursively within the styles directory
+            // Change recursive: true if you want to compile files in subfolders too
+            var allScssFiles = await sourceFileSystem.GetFilesAsync(stylesDir, "*.scss", true, cancellationToken);
 
-            // Include paths - typically the directory containing the entry point
-            //var includePaths = new List<string> { Path.GetDirectoryName(sourcePath) ?? string.Empty }; // Use Path.GetDirectoryName on the full path if needed, or just pass the stylesDir relative path
+            // Filter out partials (files starting with '_')
+            scssFilesToCompile = allScssFiles
+                .Where(f => !Path.GetFileName(f).StartsWith("_"))
+                .ToList(); // Execute query
 
-            // Use stylesDir directly as include path relative to source root
-            //includePaths = new List<string> { config.StylesDirectory };
-
-            var includePaths = new List<string> { sourceFileSystem.CombinePath(sourceFileSystem.RootPath, stylesDir) };
-
-            // Determine output style from config? Add to SiteConfiguration later.
-            var outputStyle = CssOutputStyle.Compressed; // Default for production
-
-            string? compiledCss = await _cssCompiler.CompileAsync(scssContent, sourcePath, sourceFileSystem, outputStyle, cancellationToken);
-
-            if (compiledCss != null) {
-                // Determine output path
-                string outputFileName = Path.ChangeExtension(entryPointFile, ".css");
-                string outputPath = outputFileSystem.CombinePath("css", outputFileName); // Place in a 'css' subfolder in output
-
-                _logger.LogDebug("Writing compiled CSS to: {OutputPath}", outputPath);
-                await outputFileSystem.WriteAllTextAsync(outputPath, compiledCss, cancellationToken);
-                _logger.LogInformation("CSS compiled successfully.");
+            if (!scssFilesToCompile.Any()) {
+                _logger.LogInformation("No non-partial SCSS files found in {StylesDir} to compile.", stylesDir);
+                return;
             }
-            else {
-                _logger.LogError("CSS compilation failed. See previous errors.");
-            }
+
+            _logger.LogDebug("Found {Count} non-partial SCSS files to compile: [{FileNames}]",
+                scssFilesToCompile.Count(), string.Join(", ", scssFilesToCompile.Select(Path.GetFileName)));
         }
         catch (Exception ex) {
-            _logger.LogError(ex, "Error during CSS compilation process for {SourcePath}", sourcePath);
+            _logger.LogError(ex, "Error discovering SCSS files in {StylesDir}", stylesDir);
+            return; // Stop processing if discovery fails
+        }
+
+        int successCount = 0;
+        int errorCount = 0;
+        string outputCssBaseDir = "css"; // Output subfolder (relative to output root)
+
+        // Determine output style from config? Add to SiteConfiguration later.
+        // Defaulting to Compressed for production builds.
+        var outputStyle = CssOutputStyle.Compressed;
+
+        foreach (var sourceRelativePath in scssFilesToCompile) {
+            cancellationToken.ThrowIfCancellationRequested();
+            _logger.LogDebug("Compiling SCSS file: {SourcePath}", sourceRelativePath);
+
+            try {
+                string scssContent = await sourceFileSystem.ReadAllTextAsync(sourceRelativePath, cancellationToken);
+
+                // Compile the individual SCSS file
+                string? compiledCss = await _cssCompiler.CompileAsync(scssContent, sourceRelativePath, sourceFileSystem, outputStyle, cancellationToken);
+
+                if (compiledCss != null) {
+                    // Determine the output path, preserving directory structure relative to stylesDir
+                    // 1. Get path relative to the styles directory root
+                    string pathInsideStylesDir = sourceRelativePath;
+                    if (sourceRelativePath.StartsWith(stylesDir, StringComparison.OrdinalIgnoreCase)) {
+                        pathInsideStylesDir = sourceRelativePath.Substring(stylesDir.Length).TrimStart('/');
+                    }
+
+                    // 2. Change the extension to .css
+                    string cssFileName = Path.ChangeExtension(pathInsideStylesDir, ".css");
+
+                    // 3. Combine with the output base CSS directory (e.g., "css")
+                    string outputPath = outputFileSystem.CombinePath(outputCssBaseDir, cssFileName);
+
+                    _logger.LogDebug("Writing compiled CSS for {SourceFile} to: {OutputPath}", Path.GetFileName(sourceRelativePath), outputPath);
+                    await outputFileSystem.WriteAllTextAsync(outputPath, compiledCss, cancellationToken);
+                    successCount++;
+                }
+                else {
+                    _logger.LogError("CSS compilation failed for {SourcePath}. See previous errors.", sourceRelativePath);
+                    errorCount++;
+                }
+            }
+            catch (Exception ex) {
+                _logger.LogError(ex, "Error during CSS compilation process for {SourcePath}", sourceRelativePath);
+                errorCount++;
+                // Continue with the next file
+            }
+        }
+
+        if (errorCount > 0) {
+            _logger.LogWarning("CSS compilation finished with {ErrorCount} errors. Successfully compiled: {SuccessCount}", errorCount, successCount);
+        }
+        else {
+            _logger.LogInformation("CSS compilation finished. Successfully compiled: {SuccessCount} files.", successCount);
         }
     }
 

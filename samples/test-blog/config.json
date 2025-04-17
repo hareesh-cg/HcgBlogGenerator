@@ -9,7 +9,6 @@
   "includesDirectory": "partials",
   "staticDirectory": "static",
   "stylesDirectory": "styles",
-  "styleEntryPoint": "main.scss",
   "outputDirectory": "",
   "postPermalink": "/blog/:slug/",
   "pagePermalink": "/:slug/",

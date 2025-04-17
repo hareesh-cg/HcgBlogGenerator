@@ -1,5 +1,6 @@
 ---
 title: My First Post
+slug: my-first-post
 date: 2024-01-15T10:00:00Z # ISO 8601 format UTC
 layout: post
 tags: [Introduction, Getting Started]

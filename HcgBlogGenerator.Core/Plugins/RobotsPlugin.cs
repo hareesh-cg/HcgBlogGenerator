@@ -45,6 +45,7 @@ public class RobotsPlugin : IPlugin {
             //        contentBuilder.AppendLine($"Disallow: {path}");
             //    }
             // }
+            contentBuilder.AppendLine("Disallow: /drafts/");
 
             // Optional: Add Sitemap location
             // TODO: Get sitemap path from config or another plugin's output

@@ -1,5 +1,6 @@
 ---
 title: Upcoming Feature Preview (Draft)
+slug: upcoming-feature
 date: 2024-12-01T11:00:00Z
 layout: post
 tags: [Preview]

@@ -2,10 +2,9 @@
 <html lang="{{ config.Language ?? 'en' }}">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Basic Meta Tags (SEO Plugin should enhance/replace these) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">    
     <title>{{ model.Title }} - {{ config.Title }}</title>
-    <meta name="description" content="{{ model.Seo?.MetaDescription }}">
+    {{ include 'seo_meta_data.html' }}    
     <!-- Link to compiled CSS -->
     <link rel="stylesheet" href="/css/main.css">
     <!-- Placeholder for OpenGraph/Twitter Card Meta (from SEO Plugin) -->

@@ -1,5 +1,6 @@
 ---
 title: Exploring C# Features
+slug: exploring-c-features-forever
 date: 2024-02-20T14:30:00-05:00 # Example with offset
 lastModified: 2024-02-21T09:00:00-05:00
 layout: post

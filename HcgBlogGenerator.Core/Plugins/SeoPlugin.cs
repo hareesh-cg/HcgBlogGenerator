@@ -60,6 +60,13 @@ public class SeoPlugin : IPlugin {
                 var seo = new SeoData();
                 item.Seo = seo; // Attach to item
 
+                // Check if the item is a draft
+                if (item.FrontMatter.Draft) {
+                    // Set a flag or specific directive for noindexing
+                    seo.RobotsDirective = "noindex, nofollow"; // Common directive
+                    _logger.LogTrace("Marking draft item {SourcePath} as noindex, nofollow.", item.SourcePath);
+                }
+
                 bool isPost = item is PostData;
                 bool isHomePage = item.Url == "/"; // Simple homepage check
 
@@ -111,7 +118,7 @@ public class SeoPlugin : IPlugin {
                         seo.ArticleModifiedTime = post.FrontMatter.LastModified.Value.ToString("o");
                     }
                     // Collect tags for article:tag
-                    seo.ArticleTags = post.FrontMatter.Tags?.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()).ToList();
+                    seo.ArticleTags = string.Join(',', post.FrontMatter.Tags?.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()).ToList());
                 }
 
                 // --- Twitter Specific ---

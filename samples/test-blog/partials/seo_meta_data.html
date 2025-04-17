@@ -1,0 +1,35 @@
+{{ seo = model.Seo }}
+{{ if seo }}
+    {{ if seo.Description != null }}<meta name="description" content="{{ seo.Description }}">{{ end }}
+    {{ if seo.CanonicalUrl }}<link rel="canonical" href="{{ seo.CanonicalUrl }}">{{ end }}
+    {{ if seo.Title }}<meta name="title" content="{{ seo.Title }}">{{ end }}
+    {{ if seo.Keywords }}<meta name="keywords" content="{{ seo.Keywords }}">{{ end }}
+
+    {{ if seo.OgType }}<meta property="og:type" content="{{ seo.OgType }}">{{ end }}
+    {{ if seo.OgUrl }}<meta property="og:url" content="{{ seo.OgUrl }}">{{ end }}
+    {{ if seo.OgTitle }}<meta property="og:title" content="{{ seo.OgTitle }}">{{ end }}
+    {{ if seo.OgDescription }}<meta property="og:description" content="{{ seo.OgDescription }}">{{ end }}
+    {{ if seo.OgImage }}<meta property="og:image" content="{{ seo.OgImage }}">{{ end }}
+    {{ if seo.OgImageWidth }}<meta property="og:image:width" content="{{ seo.OgImageWidth }}">{{ end }}
+    {{ if seo.OgImageHeight }}<meta property="og:image:height" content="{{ seo.OgImageHeight }}">{{ end }}
+    {{ if seo.OgLocale }}<meta property="og:locale" content="{{ seo.OgLocale }}">{{ end }}
+    {{ if seo.ArticlePublishedTime }}<meta property="article:published_time" content="{{ seo.ArticlePublishedTime }}">{{ end }}
+    {{ if seo.ArticleModifiedTime }}<meta property="article:modified_time" content="{{ seo.ArticleModifiedTime }}">{{ end }}
+    {{ if seo.ArticleTags }}<meta property="article:tag" content="{{ seo.ArticleTags }}">{{ end }}
+
+    {{ if seo.TwitterCard }}<meta name="twitter:card" content="{{ seo.TwitterCard }}">{{ end }}
+    {{ if seo.TwitterSite }}<meta name="twitter:site" content="{{ seo.TwitterSite }}">{{ end }}
+    {{ if seo.TwitterCreator }}<meta name="twitter:creator" content="{{ seo.TwitterCreator }}">{{ end }}
+    {{ if seo.TwitterTitle }}<meta name="twitter:title" content="{{ seo.TwitterTitle }}">{{ end }}
+    {{ if seo.TwitterDescription }}<meta name="twitter:description" content="{{ seo.TwitterDescription }}">{{ end }}
+    {{ if seo.TwitterImage }}<meta name="twitter:image" content="{{ seo.TwitterImage }}">{{ end }}
+
+    {{ if seo.RobotsDirective }} <meta name="robots" content="{{ seo.RobotsDirective }}"> {{ end }}
+{{ end }}
+
+
+
+
+
+
+
