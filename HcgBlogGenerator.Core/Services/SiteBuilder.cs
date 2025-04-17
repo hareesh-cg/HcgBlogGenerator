@@ -566,7 +566,7 @@ public class SiteBuilder : ISiteBuilder {
             // Determine output style from config? Add to SiteConfiguration later.
             var outputStyle = CssOutputStyle.Compressed; // Default for production
 
-            string? compiledCss = await _cssCompiler.CompileAsync(scssContent, sourcePath, includePaths, outputStyle, cancellationToken);
+            string? compiledCss = await _cssCompiler.CompileAsync(scssContent, sourcePath, sourceFileSystem, outputStyle, cancellationToken);
 
             if (compiledCss != null) {
                 // Determine output path
