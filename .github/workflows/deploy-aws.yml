@@ -56,9 +56,7 @@ jobs:
       - name: Deploy Lambda Function
         run:  | # Use pipe style for multi-line clarity
           echo "Attempting to deploy function ${{ env.LAMBDA_FUNCTION_NAME }} from $(pwd)/${{ env.PROJECT_PATH }}"
-          dotnet lambda deploy-function ${{ env.LAMBDA_FUNCTION_NAME }}
-          --region ${{ env.AWS_REGION }}
-          --package ${{ env.DEPLOY_PACKAGE_NAME }}
+          dotnet lambda deploy-function ${{ env.LAMBDA_FUNCTION_NAME }} --region ${{ env.AWS_REGION }} --package ${{ env.DEPLOY_PACKAGE_NAME }}
         working-directory: ${{ env.PROJECT_PATH }} # Run command within the project directory
 
       - name: Cleanup package
