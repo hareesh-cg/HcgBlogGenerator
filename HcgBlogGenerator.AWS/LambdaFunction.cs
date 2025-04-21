@@ -158,7 +158,7 @@ public class Function {
 
             return new APIGatewayHttpApiV2ProxyResponse {
                 StatusCode = (int)HttpStatusCode.OK,
-                Body = JsonSerializer.Serialize(new { version = "0.1.5", message = "Site build triggered and completed successfully." }),
+                Body = JsonSerializer.Serialize(new { version = "0.2.0", message = "Site build triggered and completed successfully." }),
                 Headers = new Dictionary<string, string> { { "Content-Type", "application/json" } }
             };
         }

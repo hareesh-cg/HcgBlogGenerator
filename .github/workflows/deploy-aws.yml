@@ -1,0 +1,70 @@
+name: Deploy HcgBlogGenerator AWS Lambda
+
+# Controls when the workflow will run
+on:
+  push:
+    branches: [ main ] # Trigger deployment on push to the main branch
+    paths:
+      - 'HcgBlogGenerator.Aws/**'     # Trigger only if files in AWS project change
+      - 'HcgBlogGenerator.Core/**'    # Or if files in the Core project change
+      - '.github/workflows/deploy-aws.yml' # Or if the workflow file itself changes
+
+permissions:
+  id-token: write # Required for configuring AWS credentials using OIDC
+  contents: read  # Required by actions/checkout
+
+env:
+  AWS_REGION: "us-east-1"
+  LAMBDA_FUNCTION_NAME: "HcgBlogGeneratorFunction"
+  LAMBDA_ROLE_ARN: "arn:aws:iam::915037378220:role/HcgBlogGeneratorAccess"
+
+  # --- Optional Configuration ---
+  DOTNET_VERSION: "8.0.x"                  # Specify the .NET SDK version to use
+  PROJECT_PATH: "HcgBlogGenerator.Aws"     # Path to the AWS Lambda project directory
+  DEPLOY_PACKAGE_NAME: "deploy-package.zip" # Name for the deployment zip file
+
+# Ensures only one deployment runs at a time for the main branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy Lambda
+    runs-on: ubuntu-latest # Use the latest Ubuntu runner
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}     # GitHub Secret for Access Key ID
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # GitHub Secret for Secret Access Key
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.LAMBDA_ROLE_ARN }} # Replace with your OIDC role ARN
+          # role-session-name: GitHubActionsLambdaDeploySession
+
+      - name: Install AWS Lambda Tools
+        run: dotnet tool install -g Amazon.Lambda.Tools
+
+      - name: Build and Package Lambda Function
+        run: dotnet lambda package --configuration Release --output-package ${{ env.DEPLOY_PACKAGE_NAME }}
+        working-directory: ${{ env.PROJECT_PATH }} # Run command within the project directory
+
+      - name: Deploy Lambda Function
+        run: > # Use > for multi-line command readability
+          dotnet lambda deploy-function ${{ env.LAMBDA_FUNCTION_NAME }}
+          --region ${{ env.AWS_REGION }}
+          --package ${{ env.DEPLOY_PACKAGE_NAME }}
+          --role ${{ env.LAMBDA_ROLE_ARN }}
+        working-directory: ${{ env.PROJECT_PATH }} # Run command within the project directory
+
+      - name: Cleanup package
+        run: rm ${{ env.PROJECT_PATH }}/${{ env.DEPLOY_PACKAGE_NAME }}
