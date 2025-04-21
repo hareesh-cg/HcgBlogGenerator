@@ -16,9 +16,7 @@ permissions:
 env:
   AWS_REGION: "us-east-1"
   LAMBDA_FUNCTION_NAME: "HcgBlogGeneratorFunction"
-  LAMBDA_ROLE_ARN: "arn:aws:iam::915037378220:role/HcgBlogGeneratorAccess"
-
-  # --- Optional Configuration ---
+  # LAMBDA_ROLE_ARN: "arn:aws:iam::915037378220:role/HcgBlogGeneratorAccess"
   DOTNET_VERSION: "8.0.x"                  # Specify the .NET SDK version to use
   PROJECT_PATH: "HcgBlogGenerator.Aws"     # Path to the AWS Lambda project directory
   DEPLOY_PACKAGE_NAME: "deploy-package.zip" # Name for the deployment zip file
@@ -48,7 +46,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}     # GitHub Secret for Access Key ID
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # GitHub Secret for Secret Access Key
           aws-region: ${{ env.AWS_REGION }}
-          role-to-assume: ${{ env.LAMBDA_ROLE_ARN }} # Replace with your OIDC role ARN
+          # role-to-assume: ${{ env.LAMBDA_ROLE_ARN }} # Replace with your OIDC role ARN
           # role-session-name: GitHubActionsLambdaDeploySession
 
       - name: Install AWS Lambda Tools
@@ -63,7 +61,7 @@ jobs:
           dotnet lambda deploy-function ${{ env.LAMBDA_FUNCTION_NAME }}
           --region ${{ env.AWS_REGION }}
           --package ${{ env.DEPLOY_PACKAGE_NAME }}
-          --role ${{ env.LAMBDA_ROLE_ARN }}
+#          --role ${{ env.LAMBDA_ROLE_ARN }}
         working-directory: ${{ env.PROJECT_PATH }} # Run command within the project directory
 
       - name: Cleanup package
