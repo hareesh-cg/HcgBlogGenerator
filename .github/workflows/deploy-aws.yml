@@ -49,15 +49,18 @@ jobs:
       - name: Install AWS Lambda Tools
         run: dotnet tool install -g Amazon.Lambda.Tools
 
-      - name: Verify Project Path
-        run: ls -ld ${{ env.PROJECT_PATH }}
+      - name: Verify Project Path Exists
+        run: if [ -d "${{ env.PROJECT_PATH }}" ]; then echo "Directory ${{ env.PROJECT_PATH }} found."; else echo "ERROR: Directory ${{ env.PROJECT_PATH }} NOT found!"; exit 1; fi
 
       - name: Build and Package Lambda Function
-        run: dotnet lambda package --configuration Release --output-package ${{ env.DEPLOY_PACKAGE_NAME }}
+        run:  |
+          echo "Attempting to build package in $(pwd)/${{ env.PROJECT_PATH }}"
+          dotnet lambda package --configuration Release --output-package ${{ env.DEPLOY_PACKAGE_NAME }}
         working-directory: ${{ env.PROJECT_PATH }} # Run command within the project directory
 
       - name: Deploy Lambda Function
-        run: > # Use > for multi-line command readability
+        run:  | # Use pipe style for multi-line clarity
+          echo "Attempting to deploy function ${{ env.LAMBDA_FUNCTION_NAME }} from $(pwd)/${{ env.PROJECT_PATH }}"
           dotnet lambda deploy-function ${{ env.LAMBDA_FUNCTION_NAME }}
           --region ${{ env.AWS_REGION }}
           --package ${{ env.DEPLOY_PACKAGE_NAME }}
