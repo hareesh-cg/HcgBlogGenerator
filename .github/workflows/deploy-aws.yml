@@ -60,5 +60,5 @@ jobs:
         working-directory: ${{ env.PROJECT_PATH }} # Run command within the project directory
 
       - name: Cleanup package
-        run: rm ${{ env.PROJECT_PATH }}/${{ env.DEPLOY_PACKAGE_NAME }}
+        run: rm ${{ env.DEPLOY_PACKAGE_NAME }}
         working-directory: ${{ env.PROJECT_PATH }}
