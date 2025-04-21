@@ -17,7 +17,7 @@ env:
   AWS_REGION: "us-east-1"
   LAMBDA_FUNCTION_NAME: "HcgBlogGeneratorFunction"
   DOTNET_VERSION: "8.0.x"                  # Specify the .NET SDK version to use
-  PROJECT_PATH: "HcgBlogGenerator.Aws"     # Path to the AWS Lambda project directory
+  PROJECT_PATH: "HcgBlogGenerator.AWS"     # Path to the AWS Lambda project directory
   DEPLOY_PACKAGE_NAME: "deploy-package.zip" # Name for the deployment zip file
 
 # Ensures only one deployment runs at a time for the main branch
@@ -34,15 +34,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Show Workspace Contents and Current Directory
-        run: |
-          echo "--- Present Working Directory ---"
-          pwd
-          echo "--- Listing Top-Level Contents (Non-Recursive) ---"
-          ls -la
-          echo "--- Listing Top-Level Contents (Recursive) ---"
-          ls -laR
-
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
@@ -58,21 +49,8 @@ jobs:
       - name: Install AWS Lambda Tools
         run: dotnet tool install -g Amazon.Lambda.Tools
 
-      - name: Verify Project Path Exists
-        run: | # <-- Use pipe style for multi-line shell script
-              if [ -d "${{ env.PROJECT_PATH }}" ]; then
-                echo "Directory ${{ env.PROJECT_PATH }} found."
-              else
-                echo "ERROR: Directory ${{ env.PROJECT_PATH }} NOT found!"
-                echo "Final check before exit:"
-                ls -la
-                exit 1
-              fi
-
       - name: Build and Package Lambda Function
-        run:  |
-          echo "Attempting to build package in $(pwd)/${{ env.PROJECT_PATH }}"
-          dotnet lambda package --configuration Release --output-package ${{ env.DEPLOY_PACKAGE_NAME }}
+        run: dotnet lambda package --configuration Release --output-package ${{ env.DEPLOY_PACKAGE_NAME }}
         working-directory: ${{ env.PROJECT_PATH }} # Run command within the project directory
 
       - name: Deploy Lambda Function
