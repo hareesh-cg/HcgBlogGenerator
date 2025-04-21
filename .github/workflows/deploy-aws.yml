@@ -50,7 +50,13 @@ jobs:
         run: dotnet tool install -g Amazon.Lambda.Tools
 
       - name: Verify Project Path Exists
-        run: if [ -d "${{ env.PROJECT_PATH }}" ]; then echo "Directory ${{ env.PROJECT_PATH }} found."; else echo "ERROR: Directory ${{ env.PROJECT_PATH }} NOT found!"; exit 1; fi
+        run: | # <-- Use pipe style for multi-line shell script
+              if [ -d "${{ env.PROJECT_PATH }}" ]; then
+                echo "Directory ${{ env.PROJECT_PATH }} found."
+              else
+                echo "ERROR: Directory ${{ env.PROJECT_PATH }} NOT found!"
+                exit 1
+              fi
 
       - name: Build and Package Lambda Function
         run:  |
