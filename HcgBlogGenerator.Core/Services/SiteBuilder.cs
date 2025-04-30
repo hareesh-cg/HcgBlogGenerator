@@ -14,7 +14,8 @@ namespace HcgBlogGenerator.Core.Services;
 /// </summary>
 public class SiteBuilder : ISiteBuilder {
     private readonly ILogger<SiteBuilder> _logger;
-    private readonly IContentParser _contentParser;
+    private readonly MarkdigContentParser _markdownParser;
+    private readonly HtmlContentParser _htmlParser;
     private readonly ITemplateEngine _templateEngine;
     private readonly ICssCompiler _cssCompiler;
     private readonly IMetadataExtractor _metadataExtractor;
@@ -23,13 +24,15 @@ public class SiteBuilder : ISiteBuilder {
 
     public SiteBuilder(
         ILogger<SiteBuilder> logger,
-        IContentParser contentParser,
+        MarkdigContentParser markdownParser,
+        HtmlContentParser htmlParser,
         ITemplateEngine templateEngine,
         ICssCompiler cssCompiler,
         IMetadataExtractor metadataExtractor,
         PluginManager pluginManager) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _contentParser = contentParser ?? throw new ArgumentNullException(nameof(contentParser));
+        _markdownParser = markdownParser ?? throw new ArgumentNullException(nameof(markdownParser));
+        _htmlParser = htmlParser ?? throw new ArgumentNullException(nameof(htmlParser));
         _templateEngine = templateEngine ?? throw new ArgumentNullException(nameof(templateEngine));
         _cssCompiler = cssCompiler ?? throw new ArgumentNullException(nameof(cssCompiler));
         _metadataExtractor = metadataExtractor ?? throw new ArgumentNullException(nameof(metadataExtractor));
@@ -187,14 +190,23 @@ public class SiteBuilder : ISiteBuilder {
         IEnumerable<string> contentFiles;
 
         try {
-            // Find all markdown files recursively within the content directory
-            contentFiles = await sourceFileSystem.GetFilesAsync(config.ContentDirectory, "*.md", true, cancellationToken);
+            // Find all markdown AND html files recursively within the content directory
+            var mdFiles = await sourceFileSystem.GetFilesAsync(config.ContentDirectory, "*.md", true, cancellationToken);
+            var htmlFiles = await sourceFileSystem.GetFilesAsync(config.ContentDirectory, "*.html", true, cancellationToken);
+            var htmFiles = await sourceFileSystem.GetFilesAsync(config.ContentDirectory, "*.htm", true, cancellationToken);
+
+            contentFiles = mdFiles.Concat(htmlFiles).Concat(htmFiles).Distinct(); // Combine lists
+
+            if (!contentFiles.Any()) {
+                _logger.LogInformation("No .md, .html, or .htm files found in {ContentDirectory}.", config.ContentDirectory);
+                return;
+            }
+            _logger.LogDebug("Found {Count} potential content files (.md, .html, .htm) in {ContentDirectory}", contentFiles.Count(), config.ContentDirectory);
         }
         catch (Exception ex) {
             _logger.LogError(ex, "Error discovering content files in {ContentDirectory}", config.ContentDirectory);
             return; // Stop processing if discovery fails
         }
-
 
         int processedCount = 0;
         int skippedDraftCount = 0;
@@ -206,8 +218,30 @@ public class SiteBuilder : ISiteBuilder {
 
             try {
                 string rawContent = await sourceFileSystem.ReadAllTextAsync(filePath, cancellationToken);
-                var parseResult = await _contentParser.ParseAsync(rawContent, filePath, cancellationToken);
 
+                // *** Change: Select parser based on extension ***
+                string extension = Path.GetExtension(filePath).ToLowerInvariant();
+                IContentParser selectedParser;
+
+                if (extension == ".md") {
+                    selectedParser = _markdownParser;
+                    _logger.LogTrace("Using Markdown parser for {FilePath}", filePath);
+                }
+                else if (extension == ".html" || extension == ".htm") {
+                    selectedParser = _htmlParser;
+                    _logger.LogTrace("Using HTML parser for {FilePath}", filePath);
+                }
+                else {
+                    _logger.LogWarning("Skipping file with unsupported content extension: {FilePath}", filePath);
+                    continue; // Skip files that aren't md or html/htm
+                }
+
+                // Use the selected parser
+                var parseResult = await selectedParser.ParseAsync(rawContent, filePath, cancellationToken);
+                // *** End Change ***
+
+
+                // --- Existing Logic (Checks, Type Determination, Population) ---
                 // Check for Draft status
                 if (parseResult.FrontMatter.Draft && !config.BuildDrafts) {
                     skippedDraftCount++;
@@ -216,24 +250,24 @@ public class SiteBuilder : ISiteBuilder {
                 }
 
                 // Check for Future date status
-                if (parseResult.FrontMatter.Date.HasValue && parseResult.FrontMatter.Date.Value > DateTimeOffset.UtcNow && !config.BuildFutureDated) {
+                if (parseResult.FrontMatter.Date.HasValue && parseResult.FrontMatter.Date.Value > DateTime.UtcNow && !config.BuildFutureDated) {
                     skippedFutureCount++;
                     _logger.LogDebug("Skipping future-dated file: {FilePath} (Date: {Date})", filePath, parseResult.FrontMatter.Date.Value);
                     continue;
                 }
 
-                // TODO: Instantiate a dedicated ContentProcessor service?
-                // Determine if Post or Page (e.g., based on path or frontmatter flag)
-                // For now, simple logic: if path starts with content/posts (or similar), it's a post.
-                bool isPost = IsPost(filePath, config); // Implement IsPost logic
+                // Determine if Post or Page
+                bool isPost = IsPost(filePath, config);
 
                 ContentItem item;
                 if (isPost) {
                     var post = new PostData();
                     // Populate PostData-specific fields
-                    post.Date = parseResult.FrontMatter.Date ?? DateTimeOffset.UtcNow.DateTime; // Default to now if missing? Or throw? Require date for posts.
-                    // TODO: post.ReadingTimeMinutes = _readingTimeCalculator.Calculate(parseResult.HtmlContent);
-                    // TODO: post.Summary = GenerateSummary(parseResult.HtmlContent, parseResult.FrontMatter);
+                    if (!parseResult.FrontMatter.Date.HasValue) {
+                        _logger.LogError("Post file {FilePath} is missing required 'Date' field in frontmatter. Skipping.", filePath);
+                        continue; // Skip posts without dates
+                    }
+                    post.Date = parseResult.FrontMatter.Date.Value; // Non-nullable Date on PostData requires value
                     item = post;
                 }
                 else {
@@ -244,32 +278,28 @@ public class SiteBuilder : ISiteBuilder {
                 // Populate common ContentItem fields
                 item.SourcePath = filePath;
                 item.FrontMatter = parseResult.FrontMatter;
-                item.HtmlContent = parseResult.HtmlContent;
-                item.SiteContext = siteContext; // Link back to context
+                item.HtmlContent = parseResult.HtmlContent; // This is Markdown->HTML OR Original HTML body
+                item.SiteContext = siteContext;
 
-                // Calculate Output Path and URL (critical!)
+                // Calculate Output Path and URL
                 item.Url = CalculateUrl(item, config);
-                item.DestinationPath = CalculateDestinationPath(item, config);                
+                item.DestinationPath = CalculateDestinationPath(item, config);
 
-                // Add to context lists
+                // Add to context lists (and generate summary for posts)
                 if (item is PostData postItem) {
-                    if (!parseResult.FrontMatter.Date.HasValue) {
-                        _logger.LogError("Post file {FilePath} is missing required 'Date' field in frontmatter. Skipping.", filePath);
-                        continue; // Skip posts without dates
-                    }
-                    postItem.Date = parseResult.FrontMatter.Date.Value;
-
-                    // Generate Summary if not provided in frontmatter
+                    // Generate Summary if not provided in frontmatter (applies to both MD and HTML posts)
                     postItem.Summary = parseResult.FrontMatter.Summary?.Trim()
-                                     ?? _metadataExtractor.GenerateSummary(postItem.HtmlContent, 250) // Use extractor
-                                     ?? string.Empty; // Ensure Summary is not null
+                                     // Generate summary from HtmlContent (which is already HTML)
+                                     ?? _metadataExtractor.GenerateSummary(postItem.HtmlContent, 250)
+                                     ?? string.Empty;
 
                     siteContext.Posts.Add(postItem);
                 }
                 else if (item is PageData pageItem) {
                     siteContext.Pages.Add(pageItem);
                 }
-                else {
+                else // Should not happen with current logic, but keep for safety
+                {
                     siteContext.OtherContent.Add(item);
                 }
                 processedCount++;
@@ -406,7 +436,7 @@ public class SiteBuilder : ISiteBuilder {
         }
 
         // Check if it's THE index.md at the root of the content directory
-        if (relativeToContent.Equals("index.md", StringComparison.OrdinalIgnoreCase)) {
+        if (relativeToContent.Equals("index.md", StringComparison.OrdinalIgnoreCase) || relativeToContent.Equals("index.html", StringComparison.OrdinalIgnoreCase)) {
             _logger.LogTrace("Handling root index file {SourcePath}, mapping to '/'", item.SourcePath);
             return "/"; // Root index file maps to site root URL
         }

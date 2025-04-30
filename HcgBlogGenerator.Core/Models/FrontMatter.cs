@@ -49,6 +49,12 @@ public class FrontMatter {
     public string? Url { get; set; }
 
     /// <summary>
+    /// Explicitly sets the output URL path relative to the base URL. Overrides permalink generation.
+    /// Should start and end with '/'. Example: "/my-custom-page/"
+    /// </summary>
+    public string? ImageUrl { get; set; }
+
+    /// <summary>
     /// Custom slug to use in permalink generation instead of deriving from filename.
     /// </summary>
     public string? Slug { get; set; }

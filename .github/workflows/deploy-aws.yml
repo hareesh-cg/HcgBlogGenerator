@@ -15,7 +15,7 @@ permissions:
 
 env:
   AWS_REGION: "us-east-1"
-  LAMBDA_FUNCTION_NAME: "HcgBlogGeneratorFunction"
+  LAMBDA_FUNCTION_NAME: "HcgBlog-Generator"
   DOTNET_VERSION: "8.0.x"                  # Specify the .NET SDK version to use
   PROJECT_PATH: "HcgBlogGenerator.AWS"     # Path to the AWS Lambda project directory
   DEPLOY_PACKAGE_NAME: "deploy-package.zip" # Name for the deployment zip file

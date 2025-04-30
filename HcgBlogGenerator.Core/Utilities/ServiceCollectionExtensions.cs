@@ -28,7 +28,8 @@ public static class ServiceCollectionExtensions {
 
         // Register Implementations (Transient or Scoped depending on state)
         services.AddSingleton<IMetadataExtractor, MetadataExtractor>();
-        services.AddSingleton<IContentParser, MarkdigContentParser>();
+        services.AddSingleton<MarkdigContentParser>();
+        services.AddSingleton<HtmlContentParser>();
         services.AddSingleton<ITemplateEngine, ScribanTemplateEngine>(); // Template engine can often be singleton if thread-safe and state loaded once
         services.AddSingleton<ICssCompiler, LibSassCompiler>();
         services.AddSingleton<ISiteBuilder, SiteBuilder>(); // SiteBuilder orchestrates a single build

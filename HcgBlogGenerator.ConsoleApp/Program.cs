@@ -10,7 +10,7 @@ namespace HcgBlogGenerator.ConsoleApp;
 public class Program {
     public static async Task<int> Main(string[] args) {
         // await BuildNow("D:\\Projects\\Websites\\Test\\testing3", "D:\\Projects\\Websites\\Test\\result3");
-        await ServeNow("D:\\Projects\\CSharp\\HcgBlogGenerator\\samples\\test-blog", "D:\\Projects\\Websites\\Test\\result3", 3000);
+        await ServeNow("D:\\Projects\\Websites\\Test\\testing-main\\test1", "D:\\Projects\\Websites\\Test\\result4", 3000);
         // return await ExecuteCommand(args);
 
         return 0;
